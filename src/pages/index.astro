@@ -33,7 +33,7 @@ const themeIds = themes.map((t) => t.id);
 							<h1>Terminal panels where every number is <span class="accent">real</span>.</h1>
 							<p class="muted">
 								Sci-fi hacker panels from the movies, except these ones tell you the truth. Seventeen widgets for Linux and
-								macOS, each a single self-contained binary. The panes on this screen are some of them.
+								macOS, each a single self-contained binary. The panes on this screen show what some of them look like, with made-up numbers.
 							</p>
 							<pre class="cmds"><span class="muted"># run it, nothing to install</span>
 <span class="accent">$</span> npx opscope         <span class="muted"># the launcher</span>
@@ -88,6 +88,11 @@ const themeIds = themes.map((t) => t.id);
 		</nav>
 	</div>
 </Base>
+
+<script>
+	import { runDemos } from '../scripts/run-demos';
+	runDemos();
+</script>
 
 <script define:vars={{ themeIds }}>
 	const root = document.documentElement;

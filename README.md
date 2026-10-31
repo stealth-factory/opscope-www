@@ -25,17 +25,20 @@ Needs Node 22 or newer.
 ## Layout
 
 ```text
-public/previews/   widget previews, picked up by name (see its README)
 src/data/          widget list and terminal themes
+src/scripts/       tui.ts (text-mode kit) and demos.ts (one demo per widget)
 src/components/    Pane.astro, one widget pane
 src/layouts/       page shell, theme CSS variables
 src/pages/         index.astro
 ```
 
-### Adding a widget preview
+### Widget demos
 
-Put `public/previews/<widget>.mp4` (or `.gif`, `.webp`, `.jpg`, `.png`) in place
-and rebuild. A still with the same name becomes the video's poster.
+Each pane runs a text-mode demo of its widget, drawn in the browser from
+`src/scripts/demos.ts` with made-up numbers. Layouts follow the widgets' own
+README mock-ups. A demo only animates while its pane is on screen, and shows a
+still frame when the visitor prefers reduced motion. To add a widget, add it to
+`src/data/widgets.ts` and give it a function in `demos.ts`.
 
 ## Licence
 
