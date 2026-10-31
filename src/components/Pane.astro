@@ -1,0 +1,46 @@
+---
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { docsUrl, type Widget } from '../data/widgets';
+
+interface Props {
+	widget: Widget;
+	n: number;
+}
+
+const { widget, n } = Astro.props;
+
+// A preview is picked up when a file named after the widget is in public/previews.
+const dir = join(process.cwd(), 'public', 'previews');
+const has = (ext: string) => existsSync(join(dir, `${widget.name}.${ext}`));
+const video = has('mp4') ? `/previews/${widget.name}.mp4` : null;
+const still = ['gif', 'webp', 'jpg', 'png'].find(has);
+const image = still ? `/previews/${widget.name}.${still}` : null;
+---
+
+<section class="pane" data-name={widget.name} data-group={widget.group} aria-label={`${widget.name} pane`}>
+	<button type="button" class="pane-bar" aria-pressed="false">
+		<span class="pane-title">{n} · {widget.name}</span>
+		<span class="pane-cmd">npx opscope {widget.name}</span>
+	</button>
+	<div class="pane-body">
+		{
+			video ? (
+				<video src={video} poster={image ?? undefined} autoplay muted loop playsinline preload="metadata" aria-label={`${widget.name} running`} />
+			) : image ? (
+				<img src={image} alt={`${widget.name} running in a terminal`} loading="lazy" />
+			) : (
+				<div class="pane-empty">
+					<span>previews/{widget.name}.mp4</span>
+					<span>preview coming soon</span>
+				</div>
+			)
+		}
+	</div>
+	<footer class="pane-foot">
+		<span>{widget.line}</span>
+		<span class="muted">
+			needs: <span class="yellow">{widget.needs}</span> · <a href={docsUrl(widget.name)}>docs</a>
+		</span>
+	</footer>
+</section>

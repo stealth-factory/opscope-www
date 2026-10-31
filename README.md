@@ -5,8 +5,11 @@ sci-fi hacker panels for your terminal, except every number on them is real.
 
 Try opscope itself with `npx opscope`.
 
-Built with [Astro](https://astro.build). The page is still a placeholder; the
-landing page and widget gallery design is in progress.
+Built with [Astro](https://astro.build). The whole page is a terminal screen:
+a shell pane with the pitch and install commands beside panes running widgets,
+a `2:widgets` window that shows all 17 with group filters and type-to-filter,
+and a tmux-style status line that switches windows and terminal colour themes
+(Catppuccin Mocha, Tokyo Night, Gruvbox Dark).
 
 ## Develop
 
@@ -22,9 +25,17 @@ Needs Node 22 or newer.
 ## Layout
 
 ```text
-public/        static files copied as-is (favicon, previews)
-src/pages/     one .astro file per page
+public/previews/   widget previews, picked up by name (see its README)
+src/data/          widget list and terminal themes
+src/components/    Pane.astro, one widget pane
+src/layouts/       page shell, theme CSS variables
+src/pages/         index.astro
 ```
+
+### Adding a widget preview
+
+Put `public/previews/<widget>.mp4` (or `.gif`, `.webp`, `.jpg`, `.png`) in place
+and rebuild. A still with the same name becomes the video's poster.
 
 ## Licence
 
