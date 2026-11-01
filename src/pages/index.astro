@@ -84,7 +84,24 @@ const themeIds = themes.map((t) => t.id);
 			<a href="#widgets" data-win="widgets">2:widgets</a>
 			<span class="spacer"></span>
 			<span class="info">{widgets.length} widgets · Linux · macOS · AGPL-3.0</span>
-			<button type="button" class="theme" data-theme-next>theme:{' '}<span data-theme-name>{themeIds[0]}</span>{' '}▸</button>
+			<div class="theme-picker">
+				<button type="button" class="theme" data-theme-toggle aria-haspopup="true" aria-expanded="false" aria-controls="theme-menu">
+					theme:{' '}<span data-theme-name>{themeIds[0]}</span>{' '}▴
+				</button>
+				<div class="theme-menu" id="theme-menu" role="menu" aria-label="Terminal theme" hidden>
+					{
+						themes.map((t) => (
+							<button type="button" role="menuitemradio" aria-checked="false" data-theme-id={t.id} style={`background:${t.bg};color:${t.fg}`}>
+								<span class="theme-mark" style={`color:${t.accent}`} aria-hidden="true">●</span>
+								<span class="theme-label">{t.name}</span>
+								<span class="swatches" aria-hidden="true">
+									{[t.red, t.green, t.yellow, t.blue, t.magenta, t.cyan].map((c) => <i style={`background:${c}`} />)}
+								</span>
+							</button>
+						))
+					}
+				</div>
+			</div>
 		</nav>
 	</div>
 </Base>
@@ -160,16 +177,62 @@ const themeIds = themes.map((t) => t.id);
 		}),
 	);
 
-	// Theme: cycle through terminal palettes, remembered on this browser.
+	// Theme: pick a terminal palette from the status-line menu. Remembered on this
+	// browser; ?theme=<id> in the URL picks one for a shared link.
 	const name = document.querySelector('[data-theme-name]');
+	const toggle = document.querySelector('[data-theme-toggle]');
+	const menu = document.getElementById('theme-menu');
+	const items = [...menu.querySelectorAll('[data-theme-id]')];
 	const current = () => (themeIds.includes(root.dataset.theme) ? root.dataset.theme : themeIds[0]);
-	name.textContent = current();
-	document.querySelector('[data-theme-next]').addEventListener('click', () => {
-		const next = themeIds[(themeIds.indexOf(current()) + 1) % themeIds.length];
-		root.dataset.theme = next;
-		name.textContent = next;
-		try {
-			localStorage.setItem('opscope-theme', next);
-		} catch {}
+	const setTheme = (id, save) => {
+		root.dataset.theme = id;
+		name.textContent = id;
+		items.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.themeId === id)));
+		if (save) {
+			try {
+				localStorage.setItem('opscope-theme', id);
+			} catch {}
+		}
+	};
+	const fromUrl = new URLSearchParams(location.search).get('theme');
+	setTheme(themeIds.includes(fromUrl) ? fromUrl : current(), false);
+	const openMenu = (on) => {
+		menu.hidden = !on;
+		toggle.setAttribute('aria-expanded', String(on));
+		if (on) (items.find((b) => b.getAttribute('aria-checked') === 'true') ?? items[0]).focus();
+	};
+	toggle.addEventListener('click', () => openMenu(menu.hidden));
+	items.forEach((b, i) => {
+		b.addEventListener('click', () => {
+			setTheme(b.dataset.themeId, true);
+			openMenu(false);
+			toggle.focus();
+		});
+		// Hovering or arrowing previews a theme; leaving the menu restores the choice.
+		b.addEventListener('focus', () => (root.dataset.theme = b.dataset.themeId));
+		b.addEventListener('mouseenter', () => (root.dataset.theme = b.dataset.themeId));
+		b.addEventListener('keydown', (e) => {
+			const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+			if (step) {
+				e.preventDefault();
+				items[(i + step + items.length) % items.length].focus();
+			}
+		});
+	});
+	const restore = () => (root.dataset.theme = name.textContent);
+	menu.addEventListener('mouseleave', () => menu.contains(document.activeElement) || restore());
+	const closeMenu = () => {
+		if (menu.hidden) return;
+		openMenu(false);
+		restore();
+	};
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape' && !menu.hidden) {
+			closeMenu();
+			toggle.focus();
+		}
+	});
+	document.addEventListener('click', (e) => {
+		if (!e.target.closest('.theme-picker')) closeMenu();
 	});
 </script>
