@@ -9,7 +9,8 @@
  *
  * `from` groups the picker: dark palettes born as terminal or editor-wide
  * schemes, popular VS Code themes carried over to the terminal, then light
- * themes. On a light background the same rule runs the other way: a colour
+ * themes, and palettes after hacker films (`film` names the film). On a
+ * light background the same rule runs the other way: a colour
  * that falls short is darkened just enough.
  */
 export const themes = [
@@ -48,13 +49,25 @@ export const themes = [
 	{ id: 'everforest-light', name: 'Everforest Light', bg: '#fdf6e3', dark: '#f4f0d9', slot: '#efebd4', fg: '#5c6a72', muted: '#637062', border: '#e0dcc7', accent: '#657301', onAccent: '#fdf6e3', green: '#657301', blue: '#2d739a', yellow: '#8d6500', red: '#d90d09', cyan: '#277a5b', magenta: '#c12991', orange: '#b25008', dim: '#bec5b2', from: 'light' },
 	{ id: 'ayu-light', name: 'Ayu Light', bg: '#fcfcfc', dark: '#f3f4f5', slot: '#f3f4f5', fg: '#5c6166', muted: '#697078', border: '#e7eaed', accent: '#b95005', onAccent: '#fcfcfc', green: '#5a7800', blue: '#1774b6', yellow: '#9c620b', red: '#dc1717', cyan: '#2d7d63', magenta: '#8b57bf', orange: '#b95005', dim: '#d8dadc', from: 'light' },
 	{ id: 'light-modern', name: 'VS Code Light Modern', bg: '#ffffff', dark: '#f8f8f8', slot: '#f8f8f8', fg: '#3b3b3b', muted: '#616161', border: '#e5e5e5', accent: '#005fb8', onAccent: '#ffffff', green: '#008400', blue: '#0451a5', yellow: '#747700', red: '#cd3131', cyan: '#047c99', magenta: '#bc05bc', orange: '#b05a00', dim: '#d4d4d4', from: 'light' },
+	{ id: 'digital-rain', name: 'Digital Rain', bg: '#0d0208', dark: '#050104', slot: '#080d06', fg: '#00ff41', muted: '#008f11', border: '#003b00', accent: '#00ff41', onAccent: '#0d0208', green: '#00ff41', blue: '#4d8dff', yellow: '#d4ff6b', red: '#ff3b3b', cyan: '#9effc4', magenta: '#c8ff9e', orange: '#e6ff6b', dim: '#0f4a12', from: 'hacker', film: 'The Matrix', light: false },
+	{ id: 'wopr', name: 'WOPR Amber', bg: '#120a00', dark: '#0a0600', slot: '#0e0800', fg: '#ffb000', muted: '#b37a00', border: '#3d2600', accent: '#ffb000', onAccent: '#120a00', green: '#ffcc4d', blue: '#ffd98a', yellow: '#ffe066', red: '#ff5a1f', cyan: '#ffc966', magenta: '#ff8c42', orange: '#ff9500', dim: '#4a3000', from: 'hacker', film: 'WarGames', light: false },
+	{ id: 'the-grid', name: 'The Grid', bg: '#05080d', dark: '#020406', slot: '#0a1018', fg: '#c8f6ff', muted: '#6fc3df', border: '#0e3a4a', accent: '#6fc3df', onAccent: '#05080d', green: '#8dffd0', blue: '#4da6ff', yellow: '#ffe64d', red: '#ff4d3d', cyan: '#00e5ff', magenta: '#e66cff', orange: '#ff9a2e', dim: '#12384a', from: 'hacker', film: 'Tron: Legacy', light: false },
+	{ id: 'hack-the-planet', name: 'Hack the Planet', bg: '#0b0614', dark: '#06030c', slot: '#120a20', fg: '#e8dcff', muted: '#a08cc8', border: '#2d1f4a', accent: '#ff2bd6', onAccent: '#0b0614', green: '#39ff14', blue: '#7c94ff', yellow: '#faff00', red: '#ff3860', cyan: '#00f0ff', magenta: '#ff2bd6', orange: '#ff8c1a', dim: '#3a2a5c', from: 'hacker', film: 'Hackers', light: false },
+	{ id: 'fsociety', name: 'fsociety', bg: '#0f0f0f', dark: '#080808', slot: '#161616', fg: '#e6e6e6', muted: '#9a9a9a', border: '#2a2a2a', accent: '#ff3b3b', onAccent: '#080808', green: '#4cd964', blue: '#5aa9ff', yellow: '#f2c94c', red: '#ff3b3b', cyan: '#5ee0e0', magenta: '#d65cff', orange: '#ff8a3d', dim: '#333333', from: 'hacker', film: 'Mr. Robot', light: false },
+	{ id: 'section-9', name: 'Section 9', bg: '#071a1a', dark: '#041212', slot: '#0a2222', fg: '#b8f2e6', muted: '#6fb3a6', border: '#12403a', accent: '#3ee6c4', onAccent: '#041212', green: '#74f2a0', blue: '#5ab8ff', yellow: '#e8e36a', red: '#ff5c7a', cyan: '#3ee6c4', magenta: '#c38bff', orange: '#ffa45c', dim: '#1d4d46', from: 'hacker', film: 'Ghost in the Shell', light: false },
+	{ id: 'construct', name: 'The Construct', bg: '#f4f6f2', dark: '#e6ebe3', slot: '#eef2ec', fg: '#0d3b14', muted: '#3f6b45', border: '#c8d4c6', accent: '#007b0f', onAccent: '#f4f6f2', green: '#007b0f', blue: '#1f5fd6', yellow: '#776800', red: '#c81d25', cyan: '#00756b', magenta: '#8a2be2', orange: '#a94f00', dim: '#c0ccbd', from: 'hacker', film: 'The Matrix (the Construct)', light: true },
+	{ id: 'greenbar', name: 'Greenbar Printout', bg: '#fbfaf3', dark: '#dcebd7', slot: '#eef5ea', fg: '#2b2b2b', muted: '#5a5a52', border: '#c3d9bd', accent: '#2f6b3a', onAccent: '#fbfaf3', green: '#2c7637', blue: '#2c5aa0', yellow: '#7d6300', red: '#b3261e', cyan: '#1d6f73', magenta: '#8b3a8b', orange: '#a25100', dim: '#cfdccb', from: 'hacker', film: 'WarGames-era line printer paper', light: true },
+	{ id: 'encom', name: 'ENCOM', bg: '#eef7fb', dark: '#dcebf2', slot: '#e5f1f7', fg: '#0a2a3a', muted: '#3d6170', border: '#b9d6e2', accent: '#00709e', onAccent: '#eef7fb', green: '#0e7557', blue: '#0060c0', yellow: '#826400', red: '#c2261a', cyan: '#007287', magenta: '#9b2fb3', orange: '#a84e00', dim: '#bcd3dd', from: 'hacker', film: 'Tron: Legacy (ENCOM)', light: true },
 ] as const;
 
 export type Theme = (typeof themes)[number];
 
+/** Light background: the light group, or a film theme marked light. */
+export const isLight = (t: Theme) => t.from === 'light' || ('light' in t && t.light);
+
 export const themeCss = themes
 	.map((t, i) => {
 		const sel = i === 0 ? `:root, [data-theme="${t.id}"]` : `[data-theme="${t.id}"]`;
-		return `${sel}{--bg:${t.bg};--dark:${t.dark};--slot:${t.slot};--fg:${t.fg};--muted:${t.muted};--border:${t.border};--accent:${t.accent};--on-accent:${t.onAccent};--green:${t.green};--blue:${t.blue};--yellow:${t.yellow};--red:${t.red};--cyan:${t.cyan};--magenta:${t.magenta};--orange:${t.orange};--dim:${t.dim};color-scheme:${t.from === 'light' ? 'light' : 'dark'};}`;
+		return `${sel}{--bg:${t.bg};--dark:${t.dark};--slot:${t.slot};--fg:${t.fg};--muted:${t.muted};--border:${t.border};--accent:${t.accent};--on-accent:${t.onAccent};--green:${t.green};--blue:${t.blue};--yellow:${t.yellow};--red:${t.red};--cyan:${t.cyan};--magenta:${t.magenta};--orange:${t.orange};--dim:${t.dim};color-scheme:${isLight(t) ? 'light' : 'dark'};}`;
 	})
 	.join('\n');

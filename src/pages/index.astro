@@ -7,6 +7,7 @@ import { themes } from '../data/themes';
 const home = homeWidgets.map((name) => widgets.find((w) => w.name === name)!);
 const themeIds = themes.map((t) => t.id);
 const themeGroups = [
+	{ label: 'hacker films', themes: themes.filter((t) => t.from === 'hacker') },
 	{ label: 'terminal classics', themes: themes.filter((t) => t.from === 'terminal') },
 	{ label: 'vs code favourites', themes: themes.filter((t) => t.from === 'vscode') },
 	{ label: 'light', themes: themes.filter((t) => t.from === 'light') },
@@ -99,7 +100,7 @@ const themeGroups = [
 							<div role="group" aria-label={g.label}>
 								<p class="theme-group" aria-hidden="true"># {g.label}</p>
 								{g.themes.map((t) => (
-									<button type="button" role="menuitemradio" aria-checked="false" data-theme-id={t.id} style={`background:${t.bg};color:${t.fg}`}>
+									<button type="button" role="menuitemradio" aria-checked="false" data-theme-id={t.id} title={'film' in t ? `after ${t.film}` : undefined} style={`background:${t.bg};color:${t.fg}`}>
 										<span class="theme-mark" style={`color:${t.accent}`} aria-hidden="true">●</span>
 										<span class="theme-label">{t.name}</span>
 										<span class="swatches" aria-hidden="true">
