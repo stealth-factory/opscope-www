@@ -385,6 +385,16 @@ main {
 .status .theme-menu button[aria-checked='true'] .theme-label::after {
 	content: '  *';
 }
+.theme-menu [role='group'] {
+	display: flex;
+	flex-direction: column;
+}
+.theme-group {
+	margin: 0;
+	padding: 8px 12px 4px;
+	color: var(--muted);
+	font-size: 11px;
+}
 .swatches {
 	display: flex;
 	gap: 3px;

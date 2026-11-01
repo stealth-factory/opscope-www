@@ -6,6 +6,10 @@ import { themes } from '../data/themes';
 
 const home = homeWidgets.map((name) => widgets.find((w) => w.name === name)!);
 const themeIds = themes.map((t) => t.id);
+const themeGroups = [
+	{ label: 'terminal classics', themes: themes.filter((t) => t.from === 'terminal') },
+	{ label: 'vs code favourites', themes: themes.filter((t) => t.from === 'vscode') },
+];
 ---
 
 <Base
@@ -90,14 +94,19 @@ const themeIds = themes.map((t) => t.id);
 				</button>
 				<div class="theme-menu" id="theme-menu" role="menu" aria-label="Terminal theme" hidden>
 					{
-						themes.map((t) => (
-							<button type="button" role="menuitemradio" aria-checked="false" data-theme-id={t.id} style={`background:${t.bg};color:${t.fg}`}>
-								<span class="theme-mark" style={`color:${t.accent}`} aria-hidden="true">●</span>
-								<span class="theme-label">{t.name}</span>
-								<span class="swatches" aria-hidden="true">
-									{[t.red, t.green, t.yellow, t.blue, t.magenta, t.cyan].map((c) => <i style={`background:${c}`} />)}
-								</span>
-							</button>
+						themeGroups.map((g) => (
+							<div role="group" aria-label={g.label}>
+								<p class="theme-group" aria-hidden="true"># {g.label}</p>
+								{g.themes.map((t) => (
+									<button type="button" role="menuitemradio" aria-checked="false" data-theme-id={t.id} style={`background:${t.bg};color:${t.fg}`}>
+										<span class="theme-mark" style={`color:${t.accent}`} aria-hidden="true">●</span>
+										<span class="theme-label">{t.name}</span>
+										<span class="swatches" aria-hidden="true">
+											{[t.red, t.green, t.yellow, t.blue, t.magenta, t.cyan].map((c) => <i style={`background:${c}`} />)}
+										</span>
+									</button>
+								))}
+							</div>
 						))
 					}
 				</div>
