@@ -63,7 +63,7 @@ export async function startShell() {
 			['ls', 'list the widgets'],
 			['opscope <widget>', 'run a widget here, q to quit'],
 			['theme [name]', 'list themes, or switch to one'],
-			['install', 'ways to get opscope'],
+			['install [apt]', 'ways to get opscope: npx, brew, apt'],
 			['about', 'what this is'],
 			['docs', 'links to the docs'],
 			['clear', 'clear the screen (or ctrl-l)'],
@@ -183,10 +183,7 @@ export async function startShell() {
 			case 'theme':
 				return theme(arg);
 			case 'install':
-				line(`${paint('$', 'acc')} npx opscope            ${paint('# nothing to install', 'mu')}`);
-				line(`${paint('$', 'acc')} brew install opscope   ${paint('# Homebrew', 'mu')}`);
-				line(`${paint('more:', 'mu')} ${link('https://github.com/stealth-factory/opscope#getting-them')}`);
-				return;
+				return install(arg);
 			case 'about':
 				return about();
 			case 'docs':
@@ -211,6 +208,43 @@ export async function startShell() {
 		}
 	};
 
+	// The same steps as the opscope README's "Getting them" and docs/debian.md.
+	const install = (which?: string) => {
+		const cmd = (c: string) => line(`${paint('$', 'acc')} ${c}`);
+		const all = !which || !['npx', 'npm', 'brew', 'apt'].includes(which);
+		if (all || which === 'npx' || which === 'npm') {
+			line(paint('# npx (recommended): nothing to install, needs Node', 'mu'));
+			cmd('npx opscope');
+		}
+		if (all || which === 'brew') {
+			if (all) line();
+			line(paint('# Homebrew on macOS: the full name taps stealth-factory/tap', 'mu'));
+			cmd('brew install stealth-factory/tap/opscope');
+		}
+		if (all) {
+			// The source setup is long for this pane, so the overview points at it.
+			line();
+			line(paint('# APT on Debian 12+ / Ubuntu 22.04+, amd64: add our signed source once', 'mu'));
+			cmd('sudo apt install opscope');
+			line(`${paint('the one-time setup:', 'mu')} ${paint('install apt', 'acc')}`);
+		}
+		if (which === 'apt') {
+			line(paint('# APT on Debian 12+ / Ubuntu 22.04+, amd64: add the signed source once', 'mu'));
+			cmd('sudo apt install ca-certificates curl gnupg');
+			cmd('sudo install -d -m 0755 /etc/apt/keyrings');
+			cmd('curl -fsSL https://stealth-factory.github.io/apt-repo/stealth-factory.asc | sudo tee /etc/apt/keyrings/stealth-factory.asc >/dev/null');
+			cmd('gpg --show-keys --fingerprint /etc/apt/keyrings/stealth-factory.asc');
+			line(paint('# stop unless it shows 95AD 7776 2F38 D1AE CCD7  BFC9 2A5C 45AE C00E 7388', 'y'));
+			cmd("echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/stealth-factory.asc] https://stealth-factory.github.io/apt-repo stable main' | sudo tee /etc/apt/sources.list.d/stealth-factory.list");
+			cmd('sudo apt update && sudo apt install opscope');
+			line(`${paint('details:', 'mu')} ${link('https://github.com/stealth-factory/opscope/blob/main/docs/debian.md', 'docs/debian.md')}`);
+		}
+		if (all) {
+			line();
+			line(`${paint('more:', 'mu')} ${link('https://github.com/stealth-factory/opscope#getting-them')}  ${paint('(or install npx|brew|apt)', 'mu')}`);
+		}
+	};
+
 	const about = () => {
 		line(paint('# Hollywood called. They want their terminal back.', 'mu'));
 		line(`Sci-fi hacker panels, except every number on them is ${paint('real', 'acc')}.`);
@@ -220,7 +254,7 @@ export async function startShell() {
 	const complete = () => {
 		const parts = buf.split(' ');
 		const last = parts[parts.length - 1];
-		const pool = parts.length === 1 ? [...COMMANDS, ...names] : parts[0] === 'theme' ? themes.map((t) => t.id) : names;
+		const pool = parts.length === 1 ? [...COMMANDS, ...names] : parts[0] === 'theme' ? themes.map((t) => t.id) : parts[0] === 'install' ? ['npx', 'brew', 'apt'] : names;
 		const hits = pool.filter((p) => p.startsWith(last));
 		if (hits.length === 1) {
 			const add = hits[0].slice(last.length) + ' ';
