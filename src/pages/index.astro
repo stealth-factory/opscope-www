@@ -45,10 +45,9 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 								Also on Homebrew and as Debian packages.{' '}
 								<a href="https://github.com/stealth-factory/opscope#getting-them">Other ways to get it</a>
 							</p>
-							<p class="muted">
-								<a href="#dashboard">Switch to the dashboard</a>, <a href="#widgets">browse all {widgets.length} widgets</a>, or pick a window in the status line below.
-							</p>
-							<p><span class="green">~/src</span> <span class="accent">$</span> <span class="cursor" aria-hidden="true"></span></p>
+							<div class="term" data-term role="region" aria-label="Try it: a pretend shell. Type help.">
+								<p><span class="green">~/src</span> <span class="accent">$</span> <span class="cursor" aria-hidden="true"></span></p>
+							</div>
 						</div>
 					</section>
 					<div class="tiles">
@@ -135,7 +134,9 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 
 <script>
 	import { runDemos } from '../scripts/run-demos';
+	import { startShell } from '../scripts/shell';
 	runDemos();
+	startShell().catch((e) => console.warn('[opscope] shell did not start', e));
 </script>
 
 <script define:vars={{ themeIds, defaultTheme }}>
@@ -223,6 +224,8 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 			} catch {}
 		}
 	};
+	// The shell's `theme <name>` command.
+	document.addEventListener('opscope:theme', (e) => setTheme(e.detail, true));
 	const fromUrl = new URLSearchParams(location.search).get('theme');
 	setTheme(themeIds.includes(fromUrl) ? fromUrl : current(), false);
 	const openMenu = (on) => {
