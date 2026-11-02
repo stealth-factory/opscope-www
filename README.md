@@ -7,7 +7,7 @@ Try opscope itself with `npx opscope`.
 
 Built with [Astro](https://astro.build). The whole page is a terminal screen:
 a `1:factory` window with the pitch and install commands beside six panes of
-software-factory widgets, a `2:dashboard` window of six everyday panes (both
+software-factory widgets, a `2:dashboard` window of eight panes, four across (both
 sets live in `screens` in `src/data/widgets.ts`), a `3:widgets` window that
 shows all 17 with group filters and type-to-filter,
 and a tmux-style status line that switches windows and picks one of 50 colour

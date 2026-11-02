@@ -36,12 +36,13 @@ export const widgets: Widget[] = [
 ];
 
 /**
- * The home windows, each a set of six panes. The first opens by default and
- * sits beside the shell; the rest fill the screen on their own.
+ * The home windows, each a set of panes. The first opens by default and sits
+ * beside the shell (six panes, three across); the rest fill the screen on
+ * their own (eight panes, four across).
  */
 export const screens = [
 	{ id: 'factory', title: 'software factory', widgets: ['vercel-deployments', 'github-actions', 'clocks', 'herdr-panes', 'github-prs', 'agent-usage'] },
-	{ id: 'dashboard', title: 'dashboard', widgets: ['github', 'linear', 'google-trends', 'netwatch', 'latency', 'tailnet'] },
+	{ id: 'dashboard', title: 'dashboard', widgets: ['github', 'linear', 'google-trends', 'netwatch', 'latency', 'tailnet', 'ports', 'months'] },
 ] as const;
 
 export const docsUrl = (name: string) =>
