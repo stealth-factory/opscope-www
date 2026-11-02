@@ -70,7 +70,8 @@ export async function startShell() {
 		pane?.scrollTo(0, 0);
 	};
 	const line = (s = '') => out(s + '\n');
-	const prompt = () => out(`${paint('~/src', 'g')} ${paint('$', 'acc')} `);
+	const PROMPT = `${paint('~/src', 'g')} ${paint('$', 'acc')} `;
+	const prompt = () => out(PROMPT);
 
 	let buf = '';
 	const history: string[] = [];
@@ -89,6 +90,7 @@ export async function startShell() {
 			['docs', 'links to the docs'],
 			['clear', 'clear the screen (or ctrl-l)'],
 			['help', 'pick a command from a menu'],
+			['/', 'commands with suggestions as you type'],
 		];
 		for (const [c, d] of rows) line(`  ${paint(c.padEnd(18), 'acc')}${paint(d, 'mu')}`);
 	};
@@ -311,9 +313,10 @@ export async function startShell() {
 	// A picker like `gum choose`: arrow keys or the mouse move, enter or a click runs.
 	// It is drawn under the prompt and redrawn in place; typing anything else closes it
 	// and starts an ordinary command line.
-	type Item = { label: string; hint: string; pick: () => void };
+	// `descend` (slash menus): picking the item fills in this query instead, to choose an argument.
+	type Item = { label: string; hint: string; pick: () => void; descend?: string; match?: string };
 	// `lens` holds the visible length of each drawn line, to count its rows after a reflow.
-	type Menu = { title: string; items: Item[]; at: number; top: number; drawn: number; lens: number[]; move?: (i: number) => void; cancel?: () => void };
+	type Menu = { title: string; items: Item[]; at: number; top: number; drawn: number; lens: number[]; slash?: string; move?: (i: number) => void; cancel?: () => void };
 	let menu: Menu | null = null;
 	// Any-motion mouse reports (for hover) in SGR form, only while a picker is open.
 	const MOUSE_ON = `${ESC}?1003h${ESC}?1006h`;
@@ -332,13 +335,81 @@ export async function startShell() {
 		m.drawn = 0;
 		m.lens = [];
 	};
+	// A label with the typed part picked out in the accent colour.
+	const marked = (label: string, match?: string) => {
+		const i = match ? label.indexOf(match) : -1;
+		if (!match || i < 0) return label;
+		return label.slice(0, i) + paint(match, 'acc') + label.slice(i + match.length);
+	};
+	// What a slash command line offers: commands, or a command's arguments after a space.
+	const ARGS: Record<string, () => { name: string; hint: string }[]> = {
+		opscope: () => widgets.map((w) => ({ name: w.name, hint: w.line })),
+		theme: () => themes.map((t) => ({ name: t.id, hint: t.name })),
+		install: () => [
+			{ name: 'npx', hint: 'run it with Node, nothing to install' },
+			{ name: 'brew', hint: 'Homebrew on macOS' },
+			{ name: 'apt', hint: 'Debian and Ubuntu, with the one-time setup' },
+		],
+	};
+	const TOP: { name: string; hint: string }[] = [
+		{ name: 'opscope', hint: 'run a widget demo here' },
+		{ name: 'ls', hint: 'list the widgets' },
+		{ name: 'install', hint: 'get opscope: npx, brew, apt' },
+		{ name: 'theme', hint: 'change the colours' },
+		{ name: 'docs', hint: 'links to the docs' },
+		{ name: 'about', hint: 'what this is' },
+		{ name: 'help', hint: 'pick from a menu' },
+		{ name: 'history', hint: 'commands you ran' },
+		{ name: 'clear', hint: 'clear the screen' },
+	];
+	// Prefix matches first, then the rest that contain the text.
+	const rank = <T extends { name: string }>(list: T[], q: string) => [
+		...list.filter((x) => x.name.startsWith(q)),
+		...list.filter((x) => !x.name.startsWith(q) && x.name.includes(q)),
+	];
+	const slashItems = (query: string): Item[] => {
+		const q = query.slice(1).replace(/^\s+/, '');
+		const space = q.indexOf(' ');
+		if (space >= 0) {
+			const head = q.slice(0, space);
+			const arg = q.slice(space + 1).trim();
+			const args = Object.hasOwn(ARGS, head) ? ARGS[head]() : [];
+			return rank(args, arg).map((a) => ({ label: `${head} ${a.name}`, hint: a.hint, match: arg || undefined, pick: () => typed(`${head} ${a.name}`) }));
+		}
+		const top: Item[] = rank(TOP, q).map((c) => ({
+			label: c.name,
+			hint: c.hint,
+			match: q || undefined,
+			descend: Object.hasOwn(ARGS, c.name) ? `/${c.name} ` : undefined,
+			pick: () => typed(c.name),
+		}));
+		// Widget names work on their own too: `/clo` offers `opscope clocks`.
+		const direct: Item[] = q ? widgets.filter((w) => w.name.startsWith(q)).map((w) => ({ label: `opscope ${w.name}`, hint: w.line, match: q, pick: () => typed(`opscope ${w.name}`) })) : [];
+		return [...top, ...direct];
+	};
+	const slash = (query: string) => {
+		if (!menu) out(`${MOUSE_ON}${ESC}?25l`);
+		const m: Menu = menu ?? { title: '', items: [], at: 0, top: 0, drawn: 0, lens: [] };
+		m.slash = query;
+		m.items = slashItems(query);
+		m.at = 0;
+		m.top = 0;
+		menu = m;
+		draw(m);
+	};
 	const draw = (m: Menu) => {
 		const n = visible(m);
 		if (m.at < m.top) m.top = m.at;
 		if (m.at >= m.top + n) m.top = m.at - n + 1;
 		const width = term.cols - 1;
-		const labelWidth = Math.min(Math.floor(width / 2), Math.max(...m.items.map((i) => [...i.label].length)) + 2);
-		const lines = [`${paint('?', 'g')} ${ESC}1m${clip(m.title, width - 2)}${ESC}0m`];
+		const labelWidth = Math.min(Math.floor(width / 2), Math.max(8, ...m.items.map((i) => [...i.label].length)) + 2);
+		// A slash menu's first line is the prompt being typed, with a drawn cursor.
+		const lines = [
+			m.slash === undefined
+				? `${paint('?', 'g')} ${ESC}1m${clip(m.title, width - 2)}${ESC}0m`
+				: `${PROMPT}${clip(m.slash, width - PROMPT_WIDTH - 1)}${ESC}7m ${ESC}27m`,
+		];
+		if (!m.items.length) lines.push(paint('  no command matches', 'mu'));
 		for (let i = m.top; i < Math.min(m.items.length, m.top + n); i++) {
 			const it = m.items[i];
 			const label = clip(it.label, labelWidth - 1).padEnd(labelWidth);
@@ -348,10 +419,10 @@ export async function startShell() {
 			lines.push(
 				i === m.at
 					? `${ESC}40;92m❯ ${ESC}1m${label}${ESC}22;39m${hint.padEnd(room)}${ESC}0m`
-					: `  ${label}${paint(hint, 'mu')}`,
+					: `  ${marked(label, it.match)}${paint(hint, 'mu')}`,
 			);
 		}
-		const keys = '↑↓ move · enter run · esc type instead';
+		const keys = m.slash === undefined ? '↑↓ move · enter run · esc type instead' : '↑↓ move · tab complete · enter run · esc cancel';
 		const more = scrolls(m) ? `${m.top + 1}-${Math.min(m.items.length, m.top + n)} of ${m.items.length} · ` : '';
 		lines.push(paint(clip(more + keys, width), 'mu'));
 		erase(m);
@@ -380,6 +451,8 @@ export async function startShell() {
 	};
 	const choose = (m: Menu) => {
 		const it = m.items[m.at];
+		if (!it) return;
+		if (m.slash !== undefined && it.descend) return slash(it.descend);
 		close();
 		it.pick();
 	};
@@ -454,6 +527,34 @@ export async function startShell() {
 		if (menu && !running) {
 			const m = menu;
 			if (data.startsWith('\x1b[<')) return mouse(m, data);
+			if (m.slash !== undefined) {
+				const it = m.items[m.at];
+				if (data === '\r') {
+					if (!it) return;
+					if (it.descend) return slash(it.descend);
+					close();
+					return it.pick();
+				}
+				if (data === '\t') {
+					if (it) slash(it.descend ?? `/${it.label}`);
+					return;
+				}
+				if (data === '\x7f' || data === '\b') {
+					if (m.slash.length > 1) return slash(m.slash.slice(0, -1));
+					// Deleting the slash leaves an ordinary, empty prompt.
+					close();
+					return prompt();
+				}
+				if (data === '\x1b' || data === '\x03') {
+					close();
+					return prompt();
+				}
+				if (!data.startsWith('\x1b')) {
+					const text = [...data].filter((ch) => ch >= ' ' && ch !== '\x7f').join('');
+					if (text) slash(m.slash + text);
+					return;
+				}
+			}
 			if (data === `${ESC}A` || data === '\x1bOA' || data === '\x1b[Z') return move(m, m.at - 1);
 			if (data === `${ESC}B` || data === '\x1bOB' || data === '\t') return move(m, m.at + 1);
 			if (data === `${ESC}5~`) return move(m, m.at - visible(m));
@@ -500,6 +601,10 @@ export async function startShell() {
 				at = history.length;
 				replace('');
 			}
+		} else if (data === '/' && !buf) {
+			// A slash command: replace the empty prompt line with the live suggestion list.
+			out(`\r${ESC}K`);
+			slash('/');
 		} else if (!data.startsWith('\x1b')) {
 			const text = [...data].filter((ch) => ch >= ' ' && ch !== '\x7f').join('');
 			buf += text;
