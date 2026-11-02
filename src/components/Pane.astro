@@ -9,7 +9,7 @@ interface Props {
 const { widget, n } = Astro.props;
 ---
 
-<section class="pane" data-name={widget.name} data-group={widget.group} aria-label={`${widget.name} pane`}>
+<section class="pane" data-name={widget.name} data-group={widget.group} data-search={[widget.name, widget.group, widget.line, widget.needs].join(' ').toLowerCase()} aria-label={`${widget.name} pane`}>
 	<button type="button" class="pane-bar" aria-pressed="false">
 		<span class="pane-title">{n} · {widget.name}</span>
 		<span class="pane-cmd">npx opscope {widget.name}</span>

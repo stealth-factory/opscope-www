@@ -770,7 +770,11 @@ function matrix(): Demo {
 		render(cols, rows) {
 			if (cols !== w || rows !== h) {
 				w = cols; h = rows;
-				drops = Array.from({ length: w }, () => ({ y: -rnd(0, h * 2), v: rnd(0.3, 1), len: Math.round(rnd(4, h * 0.7)) }));
+				// Start some drops already on screen, so the first (and, under reduced motion, only) frame shows rain.
+				drops = Array.from({ length: w }, () => {
+					const len = Math.round(rnd(4, h * 0.7));
+					return { y: rnd(-h, h + len), v: rnd(0.3, 1), len };
+				});
 				grid = Array.from({ length: h }, () => Array.from({ length: w }, () => pick([...glyphs])));
 			}
 			return grid.map((row, y) =>

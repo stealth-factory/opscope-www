@@ -162,7 +162,8 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	window.addEventListener('hashchange', show);
 	show();
 
-	// Gallery filter: group chips plus free text over name, group, line and needs.
+	// Gallery filter: group chips plus free text over name, group, line and needs
+	// (from data-search, not the pane's text, which holds the live demo).
 	const filter = document.querySelector('[data-filter]');
 	const input = document.getElementById('q');
 	const chips = [...document.querySelectorAll('.chip')];
@@ -174,7 +175,7 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 		const q = input.value.trim().toLowerCase();
 		let n = 0;
 		panes.forEach((p) => {
-			const ok = (group === 'all' || p.dataset.group === group) && (!q || p.textContent.toLowerCase().includes(q));
+			const ok = (group === 'all' || p.dataset.group === group) && (!q || p.dataset.search.includes(q));
 			p.hidden = !ok;
 			if (ok) n++;
 		});
