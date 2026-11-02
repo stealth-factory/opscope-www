@@ -272,25 +272,12 @@ main {
 	padding: 12px;
 	background: var(--bg);
 }
-.shell.running .shell-body,
-.shell.live .shell-body {
+.shell.running .shell-body {
 	overflow: hidden;
 }
-/* Once the terminal is live it prints the intro itself; the HTML copy stays for
-   screen readers and search engines only. */
-.shell.live .shell-body > :not(.term) {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	margin: -1px;
-	overflow: hidden;
-	clip-path: inset(50%);
-	white-space: nowrap;
-}
-.shell.live:not(.running) .term {
-	height: 100%;
-	min-height: 0;
-	margin-bottom: 0;
+/* `clear` clears the intro too, as it is the screen's first output. */
+.shell.cleared .shell-body > :not(.term) {
+	display: none;
 }
 .shell.running .shell-body > :not(.term) {
 	visibility: hidden;
