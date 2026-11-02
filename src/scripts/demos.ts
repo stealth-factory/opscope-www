@@ -609,8 +609,27 @@ const DIGITS: Record<string, string[]> = {
 };
 const big = (s: string) => [0, 1, 2].map((r) => [...s].map((ch) => DIGITS[ch][r]).join(' '));
 
+/** Wall-clock parts for an IANA zone, from the browser's own zone data (so DST is right). */
+const zoneFmt = new Map<string, Intl.DateTimeFormat>();
+const inZone = (zone: string, at: Date) => {
+	let f = zoneFmt.get(zone);
+	if (!f) {
+		f = new Intl.DateTimeFormat('en-GB', { timeZone: zone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'shortOffset' });
+		zoneFmt.set(zone, f);
+	}
+	const p = Object.fromEntries(f.formatToParts(at).map((x) => [x.type, x.value]));
+	const off = (p.timeZoneName ?? 'GMT').replace('GMT', 'UTC');
+	return { h: Number(p.hour), m: p.minute, s: p.second, day: p.weekday, date: `${p.year}-${p.month}-${p.day}`, off: off === 'UTC' ? 'UTC+0' : off };
+};
+/** "Australia/Brisbane" → "Brisbane". */
+const cityOf = (zone: string) => (zone.split('/').pop() ?? zone).replace(/_/g, ' ');
+
 function clocks(): Demo {
-	const cities: [string, number][] = [['San Francisco', -7], ['New York', -4], ['London', 1], ['Berlin', 2], ['Dubai', 4], ['Bengaluru', 5.5], ['Singapore', 8], ['Tokyo', 9], ['Brisbane', 10], ['Sydney', 11]];
+	const here = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+	const world = ['America/Los_Angeles', 'America/New_York', 'Europe/London', 'Europe/Berlin', 'Asia/Dubai', 'Asia/Kolkata', 'Asia/Singapore', 'Asia/Tokyo', 'Australia/Brisbane', 'Australia/Sydney'];
+	const names: Record<string, string> = { 'America/Los_Angeles': 'San Francisco', 'Asia/Kolkata': 'Bengaluru' };
+	// The visitor's own zone leads the list; it is not repeated further down.
+	const zones = [here, ...world.filter((z) => z !== here)].slice(0, 10);
 	let pom = 25 * 60 - 337;
 	return {
 		every: 1000,
@@ -618,11 +637,11 @@ function clocks(): Demo {
 		render(cols) {
 			const now = new Date();
 			const bw = cols - 2;
-			const L: Line[] = [header('CLOCKS', cols), section('SERVER TIME')];
-			big(clock(now)).forEach((r) => L.push([[' ' + r, 'g']]));
+			const local = inZone(here, now);
+			const L: Line[] = [header('CLOCKS', cols), section('SERVER TIME', `· ${names[here] ?? cityOf(here)}`)];
+			big(`${String(local.h).padStart(2, '0')}:${local.m}:${local.s}`).forEach((r) => L.push([[' ' + r, 'g']]));
 			const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-			const off = -now.getTimezoneOffset() / 60;
-			L.push([[' ' + now.toISOString().slice(0, 10) + '  ', 'fg'], [days[now.getDay()] + '  ', 'c'], [`UTC${off >= 0 ? '+' : ''}${off}`, 'mu']], blank(), section('COUNTDOWN'));
+			L.push([[' ' + local.date + '  ', 'fg'], [days[now.getDay()] + '  ', 'c'], [local.off, 'mu']], blank(), section('COUNTDOWN'));
 			const secOfDay = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
 			const rowsC: [string, number, number, Colour][] = [
 				['Pomodoro · FOCUS', pom, 1500, 'r'],
@@ -636,12 +655,11 @@ function clocks(): Demo {
 				L.push([[' ' + pad(name, 22), 'fg'], [hms, c]]);
 				L.push([[' ' + b.on, c], [b.off, 'dim']]);
 			});
-			L.push(blank(), section('WORLD CLOCK', `${cities.length} cities`));
-			const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-			cities.forEach(([name, tz]) => {
-				const t = new Date(utc + tz * 3600000);
-				const h = t.getHours();
-				L.push([[h >= 7 && h < 19 ? ' ● ' : ' ☾ ', h >= 7 && h < 19 ? 'y' : 'b'], [pad(name, 15), 'fg'], [clock(t, false) + '  ', 'fg'], [['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][t.getDay()] + '  ', 'mu'], [`UTC${tz >= 0 ? '+' : ''}${tz === 5.5 ? '5:30' : tz}`, 'mu']]);
+			L.push(blank(), section('WORLD CLOCK', `${zones.length} cities`));
+			zones.forEach((z) => {
+				const t = inZone(z, now);
+				const day = t.h >= 7 && t.h < 19;
+				L.push([[z === here ? '▸' : ' ', 'acc'], [day ? '● ' : '☾ ', day ? 'y' : 'b'], [pad(names[z] ?? cityOf(z), 15), z === here ? 'acc' : 'fg'], [`${String(t.h).padStart(2, '0')}:${t.m}  `, 'fg'], [t.day + '  ', 'mu'], [t.off, 'mu']]);
 			});
 			L.push(blank(), keys('↑↓ cities  [space] pause  [b]reak  [r]estart  [q]uit'));
 			return L;
