@@ -53,6 +53,10 @@ a:hover {
 
 /* top bar */
 .topbar {
+	/* Header and status line stay put while the page scrolls, like a terminal's chrome. */
+	position: sticky;
+	top: 0;
+	z-index: 20;
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px 18px;
@@ -326,8 +330,14 @@ main {
 	font-size: 12px;
 }
 
-/* gallery filter, styled as a prompt */
+/* gallery filter, styled as a prompt; it stays under the header while the gallery scrolls */
 .filter {
+	position: sticky;
+	top: var(--topbar-height, 0px);
+	z-index: 15;
+	background: var(--bg);
+	/* Covers the gap above it so panes don't show through while scrolling. */
+	box-shadow: 0 -6px 0 var(--bg);
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -379,6 +389,9 @@ main {
 
 /* status line */
 .status {
+	position: sticky;
+	bottom: 0;
+	z-index: 20;
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -414,6 +427,12 @@ main {
 }
 .status .spacer {
 	flex-grow: 1;
+}
+/* On phones the sticky status line would eat the screen; drop the info text. */
+@media (max-width: 600px) {
+	.status .info {
+		display: none;
+	}
 }
 .status .info {
 	padding: 0 12px;
