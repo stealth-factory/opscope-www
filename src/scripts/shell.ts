@@ -268,8 +268,15 @@ export async function startShell() {
 		}
 	};
 
+	// Replace the typed command by redrawing it from the prompt, so a command that
+	// wrapped onto more rows is cleared too ("\b" cannot climb back to an earlier row).
+	const PROMPT_WIDTH = '~/src $ '.length;
 	const replace = (next: string) => {
-		out('\b \b'.repeat([...buf].length));
+		const used = PROMPT_WIDTH + [...buf].length;
+		// The row the cursor sits on: after exactly filling a row it waits at the last column.
+		const up = used > 0 ? Math.floor((used - 1) / term.cols) : 0;
+		out(`\r${up ? `${ESC}${up}A` : ''}${ESC}J`);
+		prompt();
 		buf = next;
 		out(buf);
 	};
@@ -288,10 +295,7 @@ export async function startShell() {
 			exec(input);
 			if (!running) prompt();
 		} else if (data === '\x7f' || data === '\b') {
-			if (buf) {
-				buf = [...buf].slice(0, -1).join('');
-				out('\b \b');
-			}
+			if (buf) replace([...buf].slice(0, -1).join(''));
 		} else if (data === '\x03') {
 			out('^C\n');
 			buf = '';
