@@ -157,10 +157,9 @@ main {
    leaving room for the panes below; its text scrolls inside it. */
 @media (max-width: 1199px) {
 	.shell {
-		height: auto;
+		height: 40vh;
+		height: 40dvh;
 		min-height: 0;
-		max-height: 40vh;
-		max-height: 40dvh;
 	}
 }
 .shell-bar {
@@ -206,8 +205,10 @@ main {
 	position: relative;
 }
 .term {
-	/* Grows into the pane's spare height but never pushes the pane taller. */
-	flex: 1 1 0;
+	/* As tall as the pane's visible area, below the intro: as output grows the pane
+	   scrolls, pushing the intro up and out like a real terminal. */
+	flex: none;
+	height: 100%;
 	min-height: 130px;
 	overflow: hidden;
 	margin-bottom: -10px;

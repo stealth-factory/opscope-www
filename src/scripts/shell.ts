@@ -48,6 +48,18 @@ export async function startShell() {
 	host.classList.add('ready');
 
 	const out = (s = '') => term.write(s.replace(/\n/g, '\r\n'));
+
+	// The intro above the terminal is ordinary output: once the cursor goes below the
+	// pane's visible area, scroll the pane so it shows, pushing the intro up.
+	const pane = host.parentElement;
+	const follow = () =>
+		requestAnimationFrame(() => {
+			if (!pane || running) return;
+			const row = term.bridge?.getCursor().row ?? term.rows - 1;
+			const rowHeight = host.clientHeight / Math.max(1, term.rows);
+			const want = host.offsetTop + (row + 1) * rowHeight + 8 - pane.clientHeight;
+			if (want > pane.scrollTop) pane.scrollTop = want;
+		});
 	const line = (s = '') => out(s + '\n');
 	const prompt = () => out(`${paint('~/src', 'g')} ${paint('$', 'acc')} `);
 
@@ -112,7 +124,7 @@ export async function startShell() {
 		const demo = make();
 		shell.classList.add('running');
 		// The program covers the pane from its top, so bring the pane's own scroll back there.
-		host.parentElement?.scrollTo(0, 0);
+		pane?.scrollTo(0, 0);
 		// Clear scrollback so no old line peeks above the program in the spare height.
 		out(`${ESC}?1049h${ESC}3J${ESC}?25l`);
 		const draw = () => {
@@ -156,9 +168,7 @@ export async function startShell() {
 				shell.classList.remove('running');
 				requestAnimationFrame(() => {
 					term.fit();
-					// Back at the prompt: show the terminal again if the pane's text is taller than the pane.
-					const pane = host.parentElement;
-					if (pane) pane.scrollTop = pane.scrollHeight;
+					follow();
 				});
 				running = null;
 				prompt();
@@ -328,6 +338,7 @@ export async function startShell() {
 			buf += text;
 			out(text);
 		}
+		follow();
 	};
 
 	line(`${paint('type', 'mu')} ${paint('help', 'acc')}${paint(', or try', 'mu')} ${paint('opscope matrix', 'acc')}`);
