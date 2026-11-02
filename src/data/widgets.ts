@@ -40,7 +40,7 @@ export const widgets: Widget[] = [
  * sits beside the shell; the rest fill the screen on their own.
  */
 export const screens = [
-	{ id: 'factory', title: 'software factory', widgets: ['agent-usage', 'herdr-panes', 'github-prs', 'github-actions', 'vercel-deployments', 'linear'] },
+	{ id: 'factory', title: 'software factory', widgets: ['vercel-deployments', 'github-actions', 'clocks', 'herdr-panes', 'github-prs', 'agent-usage'] },
 	{ id: 'dashboard', title: 'dashboard', widgets: ['latency', 'tailnet', 'netwatch', 'ports', 'clocks', 'google-trends'] },
 ] as const;
 
