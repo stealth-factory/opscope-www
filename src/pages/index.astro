@@ -207,6 +207,12 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	document.querySelectorAll('.pane-bar').forEach((bar) => {
 		bar.title = 'Run in the shell';
 		bar.addEventListener('click', () => {
+			// The shell lives in the first window: from another one, go there first.
+			const home = windows[0];
+			if (home.hidden && home.querySelector('.shell')) {
+				history.pushState(null, '', `#${home.id}`);
+				show();
+			}
 			document.dispatchEvent(new CustomEvent('opscope:run', { detail: bar.closest('.pane').dataset.name }));
 		});
 	});

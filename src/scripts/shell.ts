@@ -623,6 +623,8 @@ export async function startShell() {
 		if (again) return;
 		if (!wide.matches) shell.scrollIntoView({ behavior: reduced.matches ? 'auto' : 'smooth', block: 'start' });
 		unghost();
+		// The command replaces whatever was half typed at the prompt.
+		buf = '';
 		out(`\r${ESC}J`);
 		prompt();
 		line(`opscope ${name}`);
