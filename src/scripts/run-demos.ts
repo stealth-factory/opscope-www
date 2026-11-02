@@ -35,8 +35,9 @@ export function runDemos() {
 			clearInterval(timer);
 			if (visible && !document.hidden && !reduced.matches) timer = window.setInterval(loop, demo.every);
 		};
-		new IntersectionObserver(([e]) => {
-			visible = e.isIntersecting;
+		new IntersectionObserver((entries) => {
+			// The last entry is the newest if several queued up.
+			visible = entries[entries.length - 1].isIntersecting;
 			if (visible) draw();
 			sync();
 		}).observe(pre);

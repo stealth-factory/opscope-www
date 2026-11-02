@@ -254,7 +254,11 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 		});
 	});
 	const restore = () => (root.dataset.theme = name.textContent);
-	menu.addEventListener('mouseleave', () => menu.contains(document.activeElement) || restore());
+	// Leaving the menu with the pointer goes back to the focused item's preview, or the chosen theme.
+	menu.addEventListener('mouseleave', () => {
+		const focused = items.find((b) => b === document.activeElement);
+		root.dataset.theme = focused ? focused.dataset.themeId : name.textContent;
+	});
 	// Tabbing out of the menu drops the preview too.
 	menu.addEventListener('focusout', (e) => menu.contains(e.relatedTarget) || restore());
 	const closeMenu = () => {
