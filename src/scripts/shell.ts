@@ -118,7 +118,24 @@ export async function startShell() {
 			const bar = ansi([[` q quit · ${name} · demo with made-up numbers · npx opscope ${name} for the real one`, 'mu']], term.cols);
 			term.write(`${ESC}H${frame.join('\r\n')}${ESC}J${ESC}${term.rows};1H${bar}${ESC}K`);
 		};
-		const timer = reduced.matches ? 0 : window.setInterval(() => (demo.tick(), draw()), demo.every);
+		// Animate only while the shell is on screen, the tab is visible and motion is allowed,
+		// like the panes in run-demos.ts.
+		let timer = 0;
+		let visible = true;
+		const sync = () => {
+			clearInterval(timer);
+			timer = 0;
+			if (visible && !document.hidden && !reduced.matches) timer = window.setInterval(() => (demo.tick(), draw()), demo.every);
+		};
+		const seen = new IntersectionObserver((entries) => {
+			visible = entries[entries.length - 1].isIntersecting;
+			if (visible) draw();
+			sync();
+		});
+		seen.observe(host);
+		document.addEventListener('visibilitychange', sync);
+		reduced.addEventListener('change', sync);
+		sync();
 		term.onResize = () => draw();
 		// The pane just grew to full size: refit the grid, then draw.
 		requestAnimationFrame(() => {
@@ -128,6 +145,9 @@ export async function startShell() {
 		running = {
 			stop() {
 				clearInterval(timer);
+				seen.disconnect();
+				document.removeEventListener('visibilitychange', sync);
+				reduced.removeEventListener('change', sync);
 				term.onResize = null;
 				out(`${ESC}?1049l${ESC}?25h`);
 				shell.classList.remove('running');
