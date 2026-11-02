@@ -88,6 +88,7 @@ export async function startShell() {
 			['about', 'what this is'],
 			['docs', 'links to the docs'],
 			['clear', 'clear the screen (or ctrl-l)'],
+			['help', 'pick a command from a menu'],
 		];
 		for (const [c, d] of rows) line(`  ${paint(c.padEnd(18), 'acc')}${paint(d, 'mu')}`);
 	};
@@ -195,7 +196,7 @@ export async function startShell() {
 				return;
 			case 'help':
 			case '?':
-				return help();
+				return arg === '--list' ? help() : mainMenu();
 			case 'ls':
 			case 'widgets':
 				return ls();
@@ -307,7 +308,153 @@ export async function startShell() {
 		out(buf);
 	};
 
+	// A picker like `gum choose`: arrow keys or the mouse move, enter or a click runs.
+	// It is drawn under the prompt and redrawn in place; typing anything else closes it
+	// and starts an ordinary command line.
+	type Item = { label: string; hint: string; pick: () => void };
+	type Menu = { title: string; items: Item[]; at: number; top: number; drawn: number; move?: (i: number) => void; cancel?: () => void };
+	let menu: Menu | null = null;
+	// Any-motion mouse reports (for hover) in SGR form, only while a picker is open.
+	const MOUSE_ON = `${ESC}?1003h${ESC}?1006h`;
+	const MOUSE_OFF = `${ESC}?1003l${ESC}?1006l`;
+	const clip = (text: string, n: number) => {
+		const chars = [...text];
+		return chars.length > n ? chars.slice(0, Math.max(0, n - 1)).join('') + '…' : text;
+	};
+	const visible = (m: Menu) => Math.max(3, Math.min(m.items.length, term.rows - 4));
+	const scrolls = (m: Menu) => m.items.length > visible(m);
+	const erase = (m: Menu) => {
+		if (m.drawn) out(`\r${m.drawn > 1 ? `${ESC}${m.drawn - 1}A` : ''}${ESC}J`);
+		m.drawn = 0;
+	};
+	const draw = (m: Menu) => {
+		const n = visible(m);
+		if (m.at < m.top) m.top = m.at;
+		if (m.at >= m.top + n) m.top = m.at - n + 1;
+		const width = term.cols - 1;
+		const labelWidth = Math.min(Math.floor(width / 2), Math.max(...m.items.map((i) => [...i.label].length)) + 2);
+		const lines = [`${paint('?', 'g')} ${ESC}1m${clip(m.title, width - 2)}${ESC}0m`];
+		for (let i = m.top; i < Math.min(m.items.length, m.top + n); i++) {
+			const it = m.items[i];
+			const label = clip(it.label, labelWidth - 1).padEnd(labelWidth);
+			const room = Math.max(0, width - 2 - labelWidth);
+			const hint = clip(it.hint, room);
+			// The chosen row is a full-width bar (ANSI colour 0, the theme's dim colour).
+			lines.push(
+				i === m.at
+					? `${ESC}40;92m❯ ${ESC}1m${label}${ESC}22;39m${hint.padEnd(room)}${ESC}0m`
+					: `  ${label}${paint(hint, 'mu')}`,
+			);
+		}
+		const keys = '↑↓ move · enter run · esc type instead';
+		const more = scrolls(m) ? `${m.top + 1}-${Math.min(m.items.length, m.top + n)} of ${m.items.length} · ` : '';
+		lines.push(paint(clip(more + keys, width), 'mu'));
+		erase(m);
+		out(lines.join('\n'));
+		m.drawn = lines.length;
+		follow();
+	};
+	const open = (title: string, items: Item[], at = 0, more: Partial<Menu> = {}) => {
+		if (!menu) out(`${MOUSE_ON}${ESC}?25l`);
+		menu = { title, items, at, top: 0, drawn: 0, ...more };
+		draw(menu);
+	};
+	const close = () => {
+		if (!menu) return;
+		erase(menu);
+		menu = null;
+		out(`${MOUSE_OFF}${ESC}?25h`);
+	};
+	const move = (m: Menu, to: number) => {
+		const next = Math.max(0, Math.min(m.items.length - 1, to));
+		if (next === m.at) return;
+		m.at = next;
+		m.move?.(next);
+		draw(m);
+	};
+	const choose = (m: Menu) => {
+		const it = m.items[m.at];
+		close();
+		it.pick();
+	};
+	const dismiss = (m: Menu) => {
+		close();
+		m.cancel?.();
+		prompt();
+	};
+	// Run a picked command as if it was typed at the prompt, so the screen keeps a history.
+	const typed = (cmd: string) => {
+		prompt();
+		line(cmd);
+		history.push(cmd);
+		at = history.length;
+		exec(cmd);
+		if (!running && !menu) prompt();
+		follow();
+	};
+	const mainMenu = () =>
+		open('What would you like to do?', [
+			{ label: 'opscope <widget>', hint: 'run a widget demo here', pick: widgetMenu },
+			{ label: 'ls', hint: 'list the widgets', pick: () => typed('ls') },
+			{ label: 'install', hint: 'get opscope: npx, brew, apt', pick: () => typed('install') },
+			{ label: 'theme', hint: 'change the colours', pick: themeMenu },
+			{ label: 'docs', hint: 'links to the docs', pick: () => typed('docs') },
+			{ label: 'about', hint: 'what this is', pick: () => typed('about') },
+			{ label: 'clear', hint: 'clear the screen', pick: () => typed('clear') },
+		]);
+	const widgetMenu = () =>
+		open(
+			'Which widget? (made-up numbers, q quits it)',
+			widgets.map((w) => ({ label: w.name, hint: w.line, pick: () => typed(`opscope ${w.name}`) })),
+			Math.max(0, names.indexOf('clocks')),
+		);
+	const themeMenu = () => {
+		const was = document.documentElement.dataset.theme ?? '';
+		const list = themes.map((t) => ({ label: t.id, hint: t.name, pick: () => typed(`theme ${t.id}`) }));
+		const preview = (i: number) => document.dispatchEvent(new CustomEvent('opscope:theme-preview', { detail: themes[i].id }));
+		open('Which theme? (previews as you move)', list, Math.max(0, themes.findIndex((t) => t.id === was)), {
+			move: preview,
+			cancel: () => document.dispatchEvent(new CustomEvent('opscope:theme-preview', { detail: was })),
+		});
+	};
+	// SGR mouse reports: ESC [ < button ; column ; row M (press or motion) or m (release).
+	const mouse = (m: Menu, data: string) => {
+		for (const [, b, , y, kind] of data.matchAll(/\x1b\[<(\d+);(\d+);(\d+)([Mm])/g)) {
+			const button = Number(b);
+			if (button === 64) move(m, m.at - 1);
+			else if (button === 65) move(m, m.at + 1);
+			else {
+				// The picker's first item sits one row under its title; the cursor is on its last row.
+				const cursor = term.bridge?.getCursor().row ?? term.rows - 1;
+				const first = cursor - (m.drawn - 1) + 1;
+				const i = m.top + (Number(y) - 1 - first);
+				const inside = i >= m.top && i < Math.min(m.items.length, m.top + visible(m));
+				if (!inside) continue;
+				if (button & 32) move(m, i);
+				else if (button === 0 && kind === 'M') {
+					move(m, i);
+					return choose(m);
+				}
+			}
+		}
+	};
+
 	term.onData = (data) => {
+		if (menu && !running) {
+			const m = menu;
+			if (data.startsWith('\x1b[<')) return mouse(m, data);
+			if (data === `${ESC}A` || data === '\x1bOA' || data === '\x1b[Z') return move(m, m.at - 1);
+			if (data === `${ESC}B` || data === '\x1bOB' || data === '\t') return move(m, m.at + 1);
+			if (data === `${ESC}5~`) return move(m, m.at - visible(m));
+			if (data === `${ESC}6~`) return move(m, m.at + visible(m));
+			if (data === `${ESC}H` || data === '\x1bOH') return move(m, 0);
+			if (data === `${ESC}F` || data === '\x1bOF') return move(m, m.items.length - 1);
+			if (data === '\r' || data === ' ') return choose(m);
+			if (data === '\x1b' || data === '\x03' || data === '\x7f') return dismiss(m);
+			if (data.startsWith('\x1b')) return;
+			// Anything else: close the picker and treat the key as the start of a command.
+			dismiss(m);
+		}
 		if (running) {
 			if (data === 'q' || data === '\x03' || data === '\x1b') running.stop();
 			return;
@@ -319,7 +466,7 @@ export async function startShell() {
 			if (input.trim()) history.push(input.trim());
 			at = history.length;
 			exec(input);
-			if (!running) prompt();
+			if (!running && !menu) prompt();
 		} else if (data === '\x7f' || data === '\b') {
 			if (buf) replace([...buf].slice(0, -1).join(''));
 		} else if (data === '\x03') {
@@ -350,6 +497,10 @@ export async function startShell() {
 		follow();
 	};
 
-	line(`${paint('type', 'mu')} ${paint('help', 'acc')}${paint(', or try', 'mu')} ${paint('opscope matrix', 'acc')}`);
+	// Start as if the visitor had typed `help`: a picker of things to try.
 	prompt();
+	line('help');
+	mainMenu();
+	// Show the intro first; the picker is just below it.
+	requestAnimationFrame(() => requestAnimationFrame(() => pane?.scrollTo(0, 0)));
 }
