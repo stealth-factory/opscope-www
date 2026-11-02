@@ -53,6 +53,10 @@ a:hover {
 
 /* top bar */
 .topbar {
+	/* Header and status line stay put while the page scrolls, like a terminal's chrome. */
+	position: sticky;
+	top: 0;
+	z-index: 20;
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px 18px;
@@ -330,6 +334,9 @@ main {
 
 /* status line */
 .status {
+	position: sticky;
+	bottom: 0;
+	z-index: 20;
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -365,6 +372,12 @@ main {
 }
 .status .spacer {
 	flex-grow: 1;
+}
+/* On phones the sticky status line would eat the screen; drop the info text. */
+@media (max-width: 600px) {
+	.status .info {
+		display: none;
+	}
 }
 .status .info {
 	padding: 0 12px;
