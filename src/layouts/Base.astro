@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import { themeCss, themes } from '../data/themes';
+import Analytics from '@vercel/analytics/astro';
 import SpeedInsights from '@vercel/speed-insights/astro';
 
 interface Props {
@@ -69,6 +70,7 @@ const ids = JSON.stringify(themes.map((t) => t.id));
 	</head>
 	<body>
 		<slot />
+		<Analytics />
 		<SpeedInsights />
 	</body>
 </html>

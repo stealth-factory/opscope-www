@@ -6,7 +6,9 @@ import vercel from '@astrojs/vercel';
 export default defineConfig({
 	// The production address: canonical and Open Graph URLs are built from it.
 	site: 'https://opscope.stealth-factory.co',
+	// Web Analytics comes from the <Analytics /> component in Base.astro (@vercel/analytics),
+	// so the adapter must not inject its own copy of the script.
 	adapter: vercel({
-		webAnalytics: { enabled: true },
+		webAnalytics: { enabled: false },
 	}),
 });
