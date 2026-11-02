@@ -111,16 +111,26 @@ main {
 	gap: 6px;
 }
 /* Wide screens: the shell beside six panes, three across and two down, filling the screen. */
-@media (min-width: 1200px) {
-	.home {
-		grid-template-columns: minmax(420px, 1fr) 2.6fr;
+/* Main screen: the shell gets its own column from 860px wide; below that everything
+   stacks in one column. */
+.home:not(.full) {
+	grid-template-columns: 1fr;
+}
+@media (min-width: 860px) {
+	.home:not(.full) {
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 	}
-	/* The shell stays fixed on the main screen, between the header and the status line,
-	   while the panes beside it scroll. */
+	/* With its own column, the shell stays fixed between the header and the status
+	   line while the panes beside it scroll. */
 	.home > .shell {
 		position: sticky;
 		top: calc(var(--topbar-height, 0px) + 6px);
 		align-self: start;
+	}
+}
+@media (min-width: 1200px) {
+	.home:not(.full) {
+		grid-template-columns: minmax(420px, 1fr) 2.6fr;
 	}
 	.home.full {
 		grid-template-columns: 1fr;
@@ -153,9 +163,9 @@ main {
 	min-height: 360px;
 	overflow: hidden;
 }
-/* Stacked layout (phones, narrow windows): the shell takes at most 40% of the screen,
-   leaving room for the panes below; its text scrolls inside it. */
-@media (max-width: 1199px) {
+/* Stacked layout (phones, narrow windows), where the panes sit below the shell in the
+   same column: the shell takes 40% of the screen; its text scrolls inside it. */
+@media (max-width: 859px) {
 	.shell {
 		height: 40vh;
 		height: 40dvh;
@@ -428,7 +438,7 @@ main {
 	flex-wrap: wrap;
 	align-items: center;
 	background: var(--dark);
-	font-size: 13px;
+	font-size: 12px;
 }
 .status .session {
 	display: flex;
