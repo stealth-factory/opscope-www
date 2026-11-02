@@ -13,7 +13,6 @@ const { widget, n } = Astro.props;
 	<button type="button" class="pane-bar" aria-pressed="false">
 		<span class="pane-title">{n} · {widget.name}</span>
 		<span class="pane-cmd">npx opscope {widget.name}</span>
-		<span class="pane-run" aria-hidden="true">▶ run in shell</span>
 	</button>
 	<div class="pane-body">
 		<pre class="demo" data-demo={widget.name}>starting {widget.name}…</pre>

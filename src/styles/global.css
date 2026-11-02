@@ -347,23 +347,6 @@ main {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-/* Hovering a title bar says what a click does: run the widget in the shell. */
-.pane-run {
-	display: none;
-	color: var(--accent);
-	white-space: nowrap;
-}
-.pane-bar:hover .pane-cmd,
-.pane-bar:focus-visible .pane-cmd {
-	display: none;
-}
-.pane-bar:hover .pane-run,
-.pane-bar:focus-visible .pane-run {
-	display: inline;
-}
-.pane.focused .pane-run {
-	color: inherit;
-}
 .pane.focused .pane-bar {
 	background: var(--accent);
 	color: var(--on-accent);
@@ -399,6 +382,12 @@ main {
 .c-m { color: var(--magenta); }
 .c-o { color: var(--orange); }
 .c-inv { background: var(--fg); color: var(--bg); }
+/* Heat-map levels: an empty cell, then more and more of the theme's green. */
+.c-h0 { color: color-mix(in srgb, var(--fg) 14%, var(--bg)); }
+.c-h1 { color: color-mix(in srgb, var(--green) 35%, var(--bg)); }
+.c-h2 { color: color-mix(in srgb, var(--green) 58%, var(--bg)); }
+.c-h3 { color: color-mix(in srgb, var(--green) 80%, var(--bg)); }
+.c-h4 { color: var(--green); }
 .pane-foot {
 	display: flex;
 	flex-wrap: wrap;
