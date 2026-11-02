@@ -49,20 +49,6 @@ export async function startShell() {
 
 	const out = (s = '') => term.write(s.replace(/\n/g, '\r\n'));
 
-	// The intro above the terminal is ordinary output: once the cursor goes below the
-	// pane's visible area, scroll the pane so it shows, pushing the intro up.
-	const pane = host.parentElement;
-	const follow = () =>
-		requestAnimationFrame(() => {
-			if (!pane || running) return;
-			const row = term.bridge?.getCursor().row ?? term.rows - 1;
-			const rowHeight = host.clientHeight / Math.max(1, term.rows);
-			const top = host.offsetTop + row * rowHeight;
-			const bottom = top + rowHeight + 8 - pane.clientHeight;
-			// Down to show the cursor row; up too, if the pane was scrolled past it.
-			if (bottom > pane.scrollTop) pane.scrollTop = bottom;
-			else if (top < pane.scrollTop) pane.scrollTop = top;
-		});
 	const line = (s = '') => out(s + '\n');
 	const prompt = () => out(`${paint('~/src', 'g')} ${paint('$', 'acc')} `);
 
@@ -126,8 +112,6 @@ export async function startShell() {
 		}
 		const demo = make();
 		shell.classList.add('running');
-		// The program covers the pane from its top, so bring the pane's own scroll back there.
-		pane?.scrollTo(0, 0);
 		// Clear scrollback so no old line peeks above the program in the spare height.
 		out(`${ESC}?1049h${ESC}3J${ESC}?25l`);
 		const draw = () => {
@@ -169,10 +153,7 @@ export async function startShell() {
 				term.onResize = null;
 				out(`${ESC}?1049l${ESC}?25h`);
 				shell.classList.remove('running');
-				requestAnimationFrame(() => {
-					term.fit();
-					follow();
-				});
+				requestAnimationFrame(() => term.fit());
 				running = null;
 				prompt();
 			},
@@ -341,9 +322,79 @@ export async function startShell() {
 			buf += text;
 			out(text);
 		}
-		follow();
 	};
 
+	// The page's intro (`opscope --about`) becomes the terminal's first output, so the
+	// whole pane is one shell and typing scrolls it away. The HTML stays for no-JS
+	// visitors, search engines and screen readers, hidden once the terminal is live.
+	const intro = [...(host.parentElement?.children ?? [])].filter((el) => el !== host);
+	shell.classList.add('live');
+	await new Promise(requestAnimationFrame);
+	term.fit();
+	intro.forEach((el, i) => {
+		if (i > 1) line();
+		if (el.tagName === 'PRE') {
+			for (const l of styled(spans(el)).split('\n')) line(l);
+		} else {
+			for (const l of flow(spans(el), term.cols)) line(l);
+		}
+	});
+	line();
 	line(`${paint('type', 'mu')} ${paint('help', 'acc')}${paint(', or try', 'mu')} ${paint('opscope matrix', 'acc')}`);
 	prompt();
+	// On a short pane the intro runs into scrollback: start at its top, so the headline
+	// is what visitors see first. Typing brings the terminal back to the prompt.
+	requestAnimationFrame(() => host.scrollTo(0, 0));
 }
+
+// The intro's HTML as styled runs of text: colour from its classes, bold for the
+// headline, and the link target for anchors.
+type Span = { text: string; c: string; bold: boolean; href?: string };
+const CLASS: Record<string, string> = { muted: 'mu', accent: 'acc', green: 'g' };
+const colour = (el: Element, c: string) => [...el.classList].map((k) => CLASS[k]).find(Boolean) ?? c;
+const spans = (el: Element, c = colour(el, 'fg'), bold = el.tagName === 'H1', href?: string): Span[] =>
+	[...el.childNodes].flatMap((n) => {
+		if (n.nodeType === Node.TEXT_NODE) return [{ text: n.textContent ?? '', c, bold, href }];
+		if (!(n instanceof Element) || n.classList.contains('cursor')) return [];
+		const a = n instanceof HTMLAnchorElement ? n.href : href;
+		return spans(n, a ? 'b' : colour(n, c), bold || n.tagName === 'H1', a);
+	});
+const style = (text: string, s: Span) => {
+	const body = `${ESC}${s.bold ? '1;' : ''}${SGR[s.c] ?? '39'}m${text}${ESC}0m`;
+	return s.href ? `\x1b]8;;${s.href}\x1b\\${body}\x1b]8;;\x1b\\` : body;
+};
+const styled = (list: Span[]) => list.map((s) => s.text.split('\n').map((t) => (t ? style(t, s) : '')).join('\n')).join('');
+/** Word-wraps styled runs to `width` columns, collapsing whitespace like HTML does.
+ *  Runs with no space between them ("real" + ".") stay one word. */
+const flow = (list: Span[], width: number) => {
+	const words: { text: string; len: number }[] = [];
+	let space = true;
+	for (const s of list)
+		for (const piece of s.text.split(/(\s+)/)) {
+			if (!piece) continue;
+			if (/^\s+$/.test(piece)) {
+				space = true;
+				continue;
+			}
+			const last = words[words.length - 1];
+			if (!space && last) {
+				last.text += style(piece, s);
+				last.len += piece.length;
+			} else words.push({ text: style(piece, s), len: piece.length });
+			space = false;
+		}
+	const lines: string[] = [];
+	let cur = '';
+	let len = 0;
+	for (const w of words) {
+		if (len && len + 1 + w.len > width) {
+			lines.push(cur);
+			cur = '';
+			len = 0;
+		}
+		cur += (len ? ' ' : '') + w.text;
+		len += (len ? 1 : 0) + w.len;
+	}
+	if (len) lines.push(cur);
+	return lines;
+};

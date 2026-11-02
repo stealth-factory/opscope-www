@@ -227,6 +227,12 @@ main {
 	min-height: 130px;
 	overflow: hidden;
 	margin-bottom: -10px;
+	/* Part of the pane, not a card inside it: drop wterm's own padding, rounded
+	   corners, shadow and background so the prompt lines up with the intro. */
+	padding: 0;
+	border-radius: 0;
+	box-shadow: none;
+	background: transparent;
 	--term-fg: var(--fg);
 	--term-bg: var(--bg);
 	--term-cursor: var(--accent);
@@ -263,10 +269,28 @@ main {
 	min-height: 0;
 	z-index: 1;
 	margin: 0;
+	padding: 12px;
 	background: var(--bg);
 }
-.shell.running .shell-body {
+.shell.running .shell-body,
+.shell.live .shell-body {
 	overflow: hidden;
+}
+/* Once the terminal is live it prints the intro itself; the HTML copy stays for
+   screen readers and search engines only. */
+.shell.live .shell-body > :not(.term) {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+.shell.live:not(.running) .term {
+	height: 100%;
+	min-height: 0;
+	margin-bottom: 0;
 }
 .shell.running .shell-body > :not(.term) {
 	visibility: hidden;
