@@ -153,6 +153,16 @@ main {
 	min-height: 360px;
 	overflow: hidden;
 }
+/* Stacked layout (phones, narrow windows): the shell takes at most 40% of the screen,
+   leaving room for the panes below; its text scrolls inside it. */
+@media (max-width: 1199px) {
+	.shell {
+		height: auto;
+		min-height: 0;
+		max-height: 40vh;
+		max-height: 40dvh;
+	}
+}
 .shell-bar {
 	display: flex;
 	justify-content: space-between;
