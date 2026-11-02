@@ -677,7 +677,7 @@ function months(): Demo {
 			const off = -now.getTimezoneOffset() / 60;
 			const L: Line[] = [
 				header('MONTHS', cols),
-				[[` ${now.toISOString().slice(0, 10)} ${days[now.getDay()]} · reckoned on this machine (UTC${off >= 0 ? '+' : ''}${off})`, 'fg']],
+				[[` ${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${days[now.getDay()]} · reckoned on this machine (UTC${off >= 0 ? '+' : ''}${off})`, 'fg']],
 				[[' weeks start Monday · wk is the ISO 8601 week', 'mu']],
 				blank(),
 			];
@@ -693,7 +693,7 @@ function months(): Demo {
 				const first = new Date(y, m, 1);
 				const start = new Date(y, m, 1 - ((first.getDay() + 6) % 7));
 				for (let w = 0; w < 6; w++) {
-					const line: Line = [['  ' + padL(isoWeek(new Date(start.getTime() + w * 7 * 864e5)), 2), 'c']];
+					const line: Line = [['  ' + padL(isoWeek(new Date(start.getFullYear(), start.getMonth(), start.getDate() + w * 7)), 2), 'c']];
 					for (let d = 0; d < 7; d++) {
 						const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + w * 7 + d);
 						const today = day.getMonth() === m && day.toDateString() === now.toDateString();

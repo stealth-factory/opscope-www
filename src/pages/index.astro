@@ -228,9 +228,14 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	const openMenu = (on) => {
 		menu.hidden = !on;
 		toggle.setAttribute('aria-expanded', String(on));
-		if (on) (items.find((b) => b.getAttribute('aria-checked') === 'true') ?? items[0]).focus();
+		if (!on) return;
+		// Keep the menu on screen when the status line wraps and the button sits at the left.
+		menu.style.right = '0';
+		const left = menu.getBoundingClientRect().left;
+		if (left < 8) menu.style.right = `${left - 8}px`;
+		(items.find((b) => b.getAttribute('aria-checked') === 'true') ?? items[0]).focus();
 	};
-	toggle.addEventListener('click', () => openMenu(menu.hidden));
+	toggle.addEventListener('click', () => (menu.hidden ? openMenu(true) : closeMenu()));
 	items.forEach((b, i) => {
 		b.addEventListener('click', () => {
 			setTheme(b.dataset.themeId, true);
@@ -250,6 +255,8 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	});
 	const restore = () => (root.dataset.theme = name.textContent);
 	menu.addEventListener('mouseleave', () => menu.contains(document.activeElement) || restore());
+	// Tabbing out of the menu drops the preview too.
+	menu.addEventListener('focusout', (e) => menu.contains(e.relatedTarget) || restore());
 	const closeMenu = () => {
 		if (menu.hidden) return;
 		openMenu(false);
