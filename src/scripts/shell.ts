@@ -57,8 +57,11 @@ export async function startShell() {
 			if (!pane || running) return;
 			const row = term.bridge?.getCursor().row ?? term.rows - 1;
 			const rowHeight = host.clientHeight / Math.max(1, term.rows);
-			const want = host.offsetTop + (row + 1) * rowHeight + 8 - pane.clientHeight;
-			if (want > pane.scrollTop) pane.scrollTop = want;
+			const top = host.offsetTop + row * rowHeight;
+			const bottom = top + rowHeight + 8 - pane.clientHeight;
+			// Down to show the cursor row; up too, if the pane was scrolled past it.
+			if (bottom > pane.scrollTop) pane.scrollTop = bottom;
+			else if (top < pane.scrollTop) pane.scrollTop = top;
 		});
 	const line = (s = '') => out(s + '\n');
 	const prompt = () => out(`${paint('~/src', 'g')} ${paint('$', 'acc')} `);

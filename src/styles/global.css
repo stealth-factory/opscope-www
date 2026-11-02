@@ -160,7 +160,7 @@ main {
 	   scrolls inside the pane, not the page. */
 	height: calc(100vh - var(--topbar-height, 0px) - var(--status-height, 0px) - 12px);
 	height: calc(100dvh - var(--topbar-height, 0px) - var(--status-height, 0px) - 12px);
-	min-height: 360px;
+	min-height: 0;
 	overflow: hidden;
 }
 /* Stacked layout (phones, narrow windows), where the panes sit below the shell in the
@@ -255,6 +255,7 @@ main {
 	position: absolute;
 	inset: 8px 10px;
 	height: auto;
+	min-height: 0;
 	z-index: 1;
 	margin: 0;
 	background: var(--bg);
