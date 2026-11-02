@@ -203,19 +203,20 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	);
 	input.addEventListener('input', apply);
 
-	// Focus a pane by clicking its title bar.
-	document.querySelectorAll('.pane-bar').forEach((bar) =>
+	// A pane's title bar runs its widget in the shell; the pane the shell is running is lit.
+	document.querySelectorAll('.pane-bar').forEach((bar) => {
+		bar.title = 'Run in the shell';
 		bar.addEventListener('click', () => {
-			const pane = bar.closest('.pane');
-			const on = !pane.classList.contains('focused');
-			document.querySelectorAll('.pane.focused').forEach((p) => {
-				p.classList.remove('focused');
-				p.querySelector('.pane-bar').setAttribute('aria-pressed', 'false');
-			});
-			pane.classList.toggle('focused', on);
-			bar.setAttribute('aria-pressed', String(on));
-		}),
-	);
+			document.dispatchEvent(new CustomEvent('opscope:run', { detail: bar.closest('.pane').dataset.name }));
+		});
+	});
+	document.addEventListener('opscope:shell-running', (e) => {
+		document.querySelectorAll('.pane').forEach((p) => {
+			const on = p.dataset.name === e.detail;
+			p.classList.toggle('focused', on);
+			p.querySelector('.pane-bar')?.setAttribute('aria-pressed', String(on));
+		});
+	});
 
 	// Theme: pick a terminal palette from the status-line menu. Remembered on this
 	// browser; ?theme=<id> in the URL picks one for a shared link.

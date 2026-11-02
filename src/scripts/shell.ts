@@ -46,6 +46,9 @@ export async function startShell() {
 	const term = new WTerm(host, { autoResize: true, cursorBlink: !reduced.matches });
 	await term.init();
 	host.classList.add('ready');
+	// wterm focuses itself on init. Leave the page's keys (Space, Page Down) to the page
+	// until the visitor clicks into the shell.
+	if (host.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
 
 	const out = (s = '') => term.write(s.replace(/\n/g, '\r\n'));
 
@@ -76,7 +79,9 @@ export async function startShell() {
 	let buf = '';
 	const history: string[] = [];
 	let at = 0;
-	let running: { stop: () => void } | null = null;
+	let running: { stop: () => void; casual: boolean } | null = null;
+	// The panes' title bars light up the pane whose widget the shell is running.
+	const showing = (name: string | null) => document.dispatchEvent(new CustomEvent('opscope:shell-running', { detail: name }));
 
 	const help = () => {
 		line(paint('a pretend shell: the panes are demos with made-up numbers', 'mu'));
@@ -126,7 +131,8 @@ export async function startShell() {
 		line(`${paint('theme:', 'mu')} ${arg}`);
 	};
 
-	const run = (name: string) => {
+	// A casual run (the demo on load, or a pane's title bar) quits on any key or click.
+	const run = (name: string, casual = false) => {
 		// Own keys only, so `opscope constructor` is not taken for a widget.
 		const make = Object.hasOwn(demos, name) ? demos[name] : undefined;
 		if (!make) {
@@ -142,7 +148,8 @@ export async function startShell() {
 		const draw = () => {
 			const rows = Math.max(4, term.rows - 1);
 			const frame = demo.render(term.cols, rows).slice(0, rows).map((l) => ansi(l, term.cols) + `${ESC}K`);
-			const bar = ansi([[` q quit · ${name} · demo with made-up numbers · npx opscope ${name} for the real one`, 'mu']], term.cols);
+			const quit = casual ? 'any key quits' : 'q quit';
+			const bar = ansi([[` ${quit} · ${name} · demo with made-up numbers · npx opscope ${name} for the real one`, 'mu']], term.cols);
 			term.write(`${ESC}H${frame.join('\r\n')}${ESC}J${ESC}${term.rows};1H${bar}${ESC}K`);
 		};
 		// Animate only while the shell is on screen, the tab is visible and motion is allowed,
@@ -169,7 +176,9 @@ export async function startShell() {
 			term.fit();
 			draw();
 		});
+		showing(name);
 		running = {
+			casual,
 			stop() {
 				clearInterval(timer);
 				seen.disconnect();
@@ -183,7 +192,9 @@ export async function startShell() {
 					follow();
 				});
 				running = null;
+				showing(null);
 				prompt();
+				if (casual) hint();
 			},
 		};
 		return true;
@@ -463,6 +474,8 @@ export async function startShell() {
 	};
 	// Run a picked command as if it was typed at the prompt, so the screen keeps a history.
 	const typed = (cmd: string) => {
+		unghost();
+		out(`\r${ESC}J`);
 		prompt();
 		line(cmd);
 		history.push(cmd);
@@ -506,14 +519,16 @@ export async function startShell() {
 	const mouse = (m: Menu, data: string) => {
 		for (const [, b, , y, kind] of data.matchAll(/\x1b\[<(\d+);(\d+);(\d+)([Mm])/g)) {
 			const button = Number(b);
-			if (button === 64) move(m, m.at - 1);
-			else if (button === 65) move(m, m.at + 1);
-			else {
-				// The picker's first item sits one row under its title; the cursor is on its last row.
-				const cursor = term.bridge?.getCursor().row ?? term.rows - 1;
-				const first = cursor - (m.drawn - 1) + 1;
-				const i = m.top + (Number(y) - 1 - first);
-				const inside = i >= m.top && i < Math.min(m.items.length, m.top + visible(m));
+			// The picker's first item sits one row under its title; the cursor is on its last row.
+			const cursor = term.bridge?.getCursor().row ?? term.rows - 1;
+			const first = cursor - (m.drawn - 1) + 1;
+			const i = m.top + (Number(y) - 1 - first);
+			const inside = i >= m.top && i < Math.min(m.items.length, m.top + visible(m));
+			if (button === 64 || button === 65) {
+				// The wheel moves the highlight over the picker's rows; anywhere else it scrolls the pane.
+				if (inside) move(m, m.at + (button === 64 ? -1 : 1));
+				else pane?.scrollBy(0, (button === 64 ? -3 : 3) * (host.clientHeight / Math.max(1, term.rows)));
+			} else {
 				if (!inside) continue;
 				if (button & 32) move(m, i);
 				else if (button === 0 && kind === 'M') {
@@ -524,7 +539,111 @@ export async function startShell() {
 		}
 	};
 
+	// A dim hint after the first prompt says the pane takes typing. It goes at the first key.
+	const HINT = 'help, or / for commands';
+	let ghost = false;
+	let keyed = false;
+	const hint = () => {
+		const room = term.cols - PROMPT_WIDTH - 1;
+		if (keyed || ghost || room < 12) return;
+		// Save the cursor, write the hint, put the cursor back in front of it.
+		out(`\x1b7${paint(clip(HINT, room), 'mu')}\x1b8`);
+		ghost = true;
+	};
+	const unghost = () => {
+		if (!ghost) return;
+		out(`${ESC}J`);
+		ghost = false;
+	};
+
+	// On a wide screen, a moment after load the prompt types `opscope clocks` and runs it:
+	// the shell shows what it is for. Any key or click stops it. Phones keep the headline.
+	const ATTRACT = 'opscope clocks';
+	const wide = matchMedia('(min-width: 860px)');
+	let attract = 0;
+	let typing = 0;
+	const stopAttract = () => {
+		clearTimeout(attract);
+		attract = 0;
+		if (!typing) return;
+		// Take back the half-typed command, and leave an empty prompt with its hint.
+		typing = 0;
+		out(`\r${ESC}J`);
+		prompt();
+		hint();
+	};
+	const autoRun = () => {
+		attract = 0;
+		typing = 0;
+		out('\n');
+		history.push(ATTRACT);
+		at = history.length;
+		run(ATTRACT.split(' ')[1], true);
+	};
+	const startAttract = () => {
+		attract = 0;
+		if (running || menu || keyed) return;
+		unghost();
+		if (reduced.matches) {
+			out(ATTRACT);
+			return autoRun();
+		}
+		const step = () => {
+			if (typing < ATTRACT.length) {
+				out(ATTRACT[typing++]);
+				attract = window.setTimeout(step, 40);
+			} else attract = window.setTimeout(autoRun, 300);
+		};
+		step();
+	};
+	// A click or tap in the shell stops the demo on load, or a casual run.
+	host.addEventListener('pointerdown', () => {
+		if (attract) stopAttract();
+		else if (running?.casual) running.stop();
+		else return;
+		// The redraw can swallow this click's own focus; on a wide screen, focus so typing works.
+		// (On a phone that would open the keyboard unasked.)
+		// Focus once the press ends: the browser's own mousedown would take the focus away again.
+		if (wide.matches) window.addEventListener('pointerup', () => term.focus(), { once: true });
+	});
+	// A pane's title bar runs its widget here; on a phone the shell scrolls into view first.
+	document.addEventListener('opscope:run', (e) => {
+		const name = (e as CustomEvent).detail;
+		if (typeof name !== 'string') return;
+		stopAttract();
+		const again = running !== null && shell.dataset.running === name;
+		if (running) running.stop();
+		if (menu) {
+			const m = menu;
+			close();
+			m.cancel?.();
+			prompt();
+		}
+		// A second click on the running pane's bar just stops it.
+		if (again) return;
+		if (!wide.matches) shell.scrollIntoView({ behavior: reduced.matches ? 'auto' : 'smooth', block: 'start' });
+		unghost();
+		out(`\r${ESC}J`);
+		prompt();
+		line(`opscope ${name}`);
+		history.push(`opscope ${name}`);
+		at = history.length;
+		run(name, true);
+		follow();
+	});
+	document.addEventListener('opscope:shell-running', (e) => {
+		const name = (e as CustomEvent).detail;
+		if (typeof name === 'string') shell.dataset.running = name;
+		else delete shell.dataset.running;
+	});
+
 	term.onData = (data) => {
+		if (attract) stopAttract();
+		if (running?.casual && !data.startsWith('\x1b[<')) return running.stop();
+		if (!data.startsWith('\x1b[<')) {
+			keyed = true;
+			unghost();
+		}
 		if (menu && !running) {
 			const m = menu;
 			if (data.startsWith('\x1b[<')) return mouse(m, data);
@@ -578,7 +697,8 @@ export async function startShell() {
 			buf = '';
 			if (input.trim()) history.push(input.trim());
 			at = history.length;
-			exec(input);
+			// Enter on an empty prompt offers the picker, as `help` does.
+			exec(input.trim() ? input : 'help');
 			if (!running && !menu) prompt();
 		} else if (data === '\x7f' || data === '\b') {
 			if (buf) replace([...buf].slice(0, -1).join(''));
@@ -614,10 +734,9 @@ export async function startShell() {
 		follow();
 	};
 
-	// Start as if the visitor had typed `help`: a picker of things to try.
+	// Start at an empty prompt with its hint; the intro above it stays in view.
 	prompt();
-	line('help');
-	mainMenu();
-	// Show the intro first; the picker is just below it.
+	hint();
 	requestAnimationFrame(() => requestAnimationFrame(() => pane?.scrollTo(0, 0)));
+	if (wide.matches) attract = window.setTimeout(startAttract, 1500);
 }

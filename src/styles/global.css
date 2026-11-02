@@ -152,6 +152,8 @@ main {
 
 /* shell pane */
 .shell {
+	/* A pane's title bar scrolls the shell into view on a phone: stop below the header. */
+	scroll-margin-top: calc(var(--topbar-height, 0px) + 6px);
 	display: flex;
 	flex-direction: column;
 	border: 1px solid var(--accent);
@@ -344,6 +346,23 @@ main {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+/* Hovering a title bar says what a click does: run the widget in the shell. */
+.pane-run {
+	display: none;
+	color: var(--accent);
+	white-space: nowrap;
+}
+.pane-bar:hover .pane-cmd,
+.pane-bar:focus-visible .pane-cmd {
+	display: none;
+}
+.pane-bar:hover .pane-run,
+.pane-bar:focus-visible .pane-run {
+	display: inline;
+}
+.pane.focused .pane-run {
+	color: inherit;
 }
 .pane.focused .pane-bar {
 	background: var(--accent);
