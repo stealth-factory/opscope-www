@@ -1,10 +1,11 @@
 ---
 import Base from '../layouts/Base.astro';
 import Pane from '../components/Pane.astro';
-import { groups, homeWidgets, widgets } from '../data/widgets';
+import { groups, screens, widgets } from '../data/widgets';
 import { defaultTheme, themeGroups as sections, themes } from '../data/themes';
 
-const home = homeWidgets.map((name) => widgets.find((w) => w.name === name)!);
+const pick = (names: readonly string[]) => names.map((name) => widgets.find((w) => w.name === name)!);
+const [first, ...rest] = screens;
 const themeIds = themes.map((t) => t.id);
 const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filter((t) => t.group === g.id) }));
 ---
@@ -15,7 +16,7 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 >
 	<div class="screen">
 		<header class="topbar">
-			<span><strong>opscope</strong> · ~/src · <span data-window-title>opscope</span></span>
+			<span><strong>opscope</strong> · ~/src · <span data-window-title>{first.id}</span></span>
 			<nav aria-label="Links">
 				<a href="https://github.com/stealth-factory/opscope">github</a>
 				<a href="https://github.com/stealth-factory/opscope#readme">docs</a>
@@ -24,7 +25,7 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 		</header>
 
 		<main>
-			<section class="window" id="opscope" data-window="opscope" aria-label="opscope">
+			<section class="window" id={first.id} data-window={first.id} aria-label={first.title}>
 				<div class="home">
 					<section class="shell" aria-label="Shell">
 						<div class="shell-bar"><span>0 · zsh</span><span>~/src</span></div>
@@ -45,16 +46,30 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 								<a href="https://github.com/stealth-factory/opscope#getting-them">Other ways to get it</a>
 							</p>
 							<p class="muted">
-								<a href="#widgets">Browse all {widgets.length} widgets</a>, or switch windows in the status line below.
+								<a href="#dashboard">Switch to the dashboard</a>, <a href="#widgets">browse all {widgets.length} widgets</a>, or pick a window in the status line below.
 							</p>
 							<p><span class="green">~/src</span> <span class="accent">$</span> <span class="cursor" aria-hidden="true"></span></p>
 						</div>
 					</section>
 					<div class="tiles">
-						{home.map((w, i) => <Pane widget={w} n={i + 1} />)}
+						{pick(first.widgets).map((w, i) => <Pane widget={w} n={i + 1} />)}
 					</div>
 				</div>
 			</section>
+
+			{
+				rest.map((sc) => (
+					<section class="window" id={sc.id} data-window={sc.id} aria-label={sc.title}>
+						<div class="home full">
+							<div class="tiles">
+								{pick(sc.widgets).map((w, i) => (
+									<Pane widget={w} n={i + 1} />
+								))}
+							</div>
+						</div>
+					</section>
+				))
+			}
 
 			<section class="window" id="widgets" data-window="widgets" aria-label="All widgets">
 				<div class="filter" data-filter hidden>
@@ -81,8 +96,14 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 
 		<nav class="status" aria-label="Windows">
 			<span class="session">[opscope]</span>
-			<a href="#opscope" data-win="opscope">1:opscope</a>
-			<a href="#widgets" data-win="widgets">2:widgets</a>
+			{
+				screens.map((sc, i) => (
+					<a href={`#${sc.id}`} data-win={sc.id}>
+						{i + 1}:{sc.id}
+					</a>
+				))
+			}
+			<a href="#widgets" data-win="widgets">{screens.length + 1}:widgets</a>
 			<span class="spacer"></span>
 			<span class="info">{widgets.length} widgets · Linux · macOS · AGPL-3.0</span>
 			<div class="theme-picker">
@@ -125,8 +146,9 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	const tabs = [...document.querySelectorAll('[data-win]')];
 	const title = document.querySelector('[data-window-title]');
 	const show = () => {
-		const want = location.hash.slice(1);
-		const id = windows.some((w) => w.id === want) ? want : 'opscope';
+		// #opscope was the first window's old name; keep old links working.
+		const want = location.hash.slice(1) === 'opscope' ? windows[0].id : location.hash.slice(1);
+		const id = windows.some((w) => w.id === want) ? want : windows[0].id;
 		windows.forEach((w) => (w.hidden = w.id !== id));
 		tabs.forEach((t) => {
 			const on = t.dataset.win === id;

@@ -35,8 +35,14 @@ export const widgets: Widget[] = [
 	{ name: 'matrix', group: 'ambient', line: 'Nothing whatsoever. Digital rain, with truecolor fade trails.', needs: 'nothing' },
 ];
 
-/** Widgets shown beside the shell on the first screen. */
-export const homeWidgets = ['latency', 'agent-usage', 'github-prs', 'tailnet'];
+/**
+ * The home windows, each a set of six panes. The first opens by default and
+ * sits beside the shell; the rest fill the screen on their own.
+ */
+export const screens = [
+	{ id: 'factory', title: 'software factory', widgets: ['agent-usage', 'herdr-panes', 'github-prs', 'github-actions', 'vercel-deployments', 'linear'] },
+	{ id: 'dashboard', title: 'dashboard', widgets: ['latency', 'tailnet', 'netwatch', 'ports', 'clocks', 'google-trends'] },
+] as const;
 
 export const docsUrl = (name: string) =>
 	`https://github.com/stealth-factory/opscope/blob/main/widgets/src/widgets/${name}/README.md`;
