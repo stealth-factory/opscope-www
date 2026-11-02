@@ -262,14 +262,9 @@ export async function startShell() {
 			line(paint('# Homebrew on macOS: the full name taps stealth-factory/tap', 'mu'));
 			cmd('brew install stealth-factory/tap/opscope');
 		}
-		if (all) {
-			// The source setup is long for this pane, so the overview points at it.
-			line();
-			line(paint('# APT on Debian 12+ / Ubuntu 22.04+, amd64: add our signed source once', 'mu'));
-			cmd('sudo apt install opscope');
-			line(`${paint('the one-time setup:', 'mu')} ${paint('install apt', 'acc')}`);
-		}
-		if (which === 'apt') {
+		if (all || which === 'apt') {
+			// apt can't find opscope until our signed source is added, so always show those steps first.
+			if (all) line();
 			line(paint('# APT on Debian 12+ / Ubuntu 22.04+, amd64: add the signed source once', 'mu'));
 			cmd('sudo apt install ca-certificates curl gnupg');
 			cmd('sudo install -d -m 0755 /etc/apt/keyrings');
