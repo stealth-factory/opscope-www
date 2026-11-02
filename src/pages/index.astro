@@ -163,11 +163,15 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	window.addEventListener('hashchange', show);
 	show();
 
-	// The header wraps to more lines on narrow screens; the sticky gallery filter sits just below it.
-	const topbar = document.querySelector('.topbar');
-	const fitUnderTopbar = () => root.style.setProperty('--topbar-height', `${topbar.offsetHeight}px`);
-	new ResizeObserver(fitUnderTopbar).observe(topbar);
-	fitUnderTopbar();
+	// The header and status line wrap to more lines on narrow screens. Sticky things
+	// (the gallery filter, the shell pane) fit between them by their measured heights.
+	const fitBars = () => {
+		root.style.setProperty('--topbar-height', `${document.querySelector('.topbar').offsetHeight}px`);
+		root.style.setProperty('--status-height', `${document.querySelector('.status').offsetHeight}px`);
+	};
+	const bars = new ResizeObserver(fitBars);
+	document.querySelectorAll('.topbar, .status').forEach((el) => bars.observe(el));
+	fitBars();
 
 	// Gallery filter: group chips plus free text over name, group, line and needs
 	// (from data-search, not the pane's text, which holds the live demo).
@@ -199,19 +203,26 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	);
 	input.addEventListener('input', apply);
 
-	// Focus a pane by clicking its title bar.
-	document.querySelectorAll('.pane-bar').forEach((bar) =>
+	// A pane's title bar runs its widget in the shell; the pane the shell is running is lit.
+	document.querySelectorAll('.pane-bar').forEach((bar) => {
+		bar.title = 'Run in the shell';
 		bar.addEventListener('click', () => {
-			const pane = bar.closest('.pane');
-			const on = !pane.classList.contains('focused');
-			document.querySelectorAll('.pane.focused').forEach((p) => {
-				p.classList.remove('focused');
-				p.querySelector('.pane-bar').setAttribute('aria-pressed', 'false');
-			});
-			pane.classList.toggle('focused', on);
-			bar.setAttribute('aria-pressed', String(on));
-		}),
-	);
+			// The shell lives in the first window: from another one, go there first.
+			const home = windows[0];
+			if (home.hidden && home.querySelector('.shell')) {
+				history.pushState(null, '', `#${home.id}`);
+				show();
+			}
+			document.dispatchEvent(new CustomEvent('opscope:run', { detail: bar.closest('.pane').dataset.name }));
+		});
+	});
+	document.addEventListener('opscope:shell-running', (e) => {
+		document.querySelectorAll('.pane').forEach((p) => {
+			const on = p.dataset.name === e.detail;
+			p.classList.toggle('focused', on);
+			p.querySelector('.pane-bar')?.setAttribute('aria-pressed', String(on));
+		});
+	});
 
 	// Theme: pick a terminal palette from the status-line menu. Remembered on this
 	// browser; ?theme=<id> in the URL picks one for a shared link.
@@ -232,6 +243,12 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	};
 	// The shell's `theme <name>` command.
 	document.addEventListener('opscope:theme', (e) => setTheme(e.detail, true));
+	// The shell's theme picker previews a theme as you move over it, like hovering this
+	// menu: only the page colours change, not the chosen theme. With no theme it ends the
+	// preview, going back to whatever is chosen now (the status menu may have changed it).
+	document.addEventListener('opscope:theme-preview', (e) => {
+		root.dataset.theme = themeIds.includes(e.detail) ? e.detail : name.textContent;
+	});
 	const fromUrl = new URLSearchParams(location.search).get('theme');
 	setTheme(themeIds.includes(fromUrl) ? fromUrl : current(), false);
 	const openMenu = (on) => {
