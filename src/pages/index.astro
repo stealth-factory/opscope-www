@@ -205,7 +205,6 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 
 	// A pane's title bar runs its widget in the shell; the pane the shell is running is lit.
 	document.querySelectorAll('.pane-bar').forEach((bar) => {
-		bar.title = 'Run in the shell';
 		bar.addEventListener('click', () => {
 			// The shell lives in the first window: from another one, go there first.
 			const home = windows[0];

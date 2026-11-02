@@ -289,16 +289,28 @@ function vercel(): Demo {
 function github(): Demo {
 	let awaiting = 486, ready = 180, draft = 16, merged = 17, dropped = 4;
 	const opened = [3, 1, 7, 2, 11, 9, 6], mergedD = [1, 4, 2, 5, 7, 3, 8];
-	const contrib = hist(7 * 40, () => (Math.random() < 0.35 ? 0 : Math.random()));
-	const shade = (v: number) => (v === 0 ? ' ' : v < 0.35 ? '░' : v < 0.7 ? '▒' : '▓');
+	// A year of contributions, one per day ending today: busy weeks and quiet ones,
+	// weekdays busier than weekends, some days with nothing.
+	const DAYS = 53 * 7;
+	let pace = 0.6;
+	const contrib = hist(DAYS, () => 0).map((_, i) => {
+		const day = new Date(Date.now() - (DAYS - 1 - i) * 86_400_000).getDay();
+		if (day === 0) pace = walk(pace, 0.35, 0.05, 1);
+		const weekend = day === 0 || day === 6;
+		if (Math.random() > (weekend ? 0.25 : 0.85) * (0.4 + pace)) return 0;
+		return Math.round(rnd(1, weekend ? 4 : 14) * pace) + 1;
+	});
+	// Levels like GitHub's: none, then four steps up to the busiest day.
+	const level = (n: number, top: number): Colour => (n <= 0 ? 'h0' : (['h1', 'h2', 'h3', 'h4'] as const)[Math.min(3, Math.floor((n / top) * 4))]);
+	const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 	return {
 		every: 2000,
 		tick() {
 			if (Math.random() < 0.4) { awaiting += pick([-1, 1]); }
 			if (Math.random() < 0.25) { merged++; ready = Math.max(0, ready - 1); mergedD[6]++; }
-			if (Math.random() < 0.3) { opened[6]++; awaiting++; contrib[contrib.length - 1] = Math.min(1, contrib[contrib.length - 1] + 0.2); }
+			if (Math.random() < 0.3) { opened[6]++; awaiting++; contrib[contrib.length - 1]++; }
 		},
-		render(cols) {
+		render(cols, rows) {
 			const w = cols - 2;
 			const tot = awaiting + ready + draft;
 			const rate = merged / (merged + dropped);
@@ -312,21 +324,49 @@ function github(): Demo {
 				blank(),
 				section('MERGE RATE', 'last 7 days'),
 				[[' ' + padL(Math.round(rate * 100) + '%', 4) + '  ', 'r'], [b.on, 'r'], [b.off, 'dim'], [`  ${merged} merged / ${dropped} dropped`, 'mu']],
-				blank(),
-				section('PR FLOW', '7d · ▲ opened · ▼ merged'),
 			];
-			const cw = Math.max(2, Math.floor((w - 2) / 7) - 1);
-			const up = columns(opened, 3, 12), dn = columns(mergedD, 3, 12);
-			up.forEach((r) => L.push([[' ' + [...r].map((ch) => ch.repeat(cw) + ' ').join(''), 'm']]));
-			L.push([[' ' + '─'.repeat((cw + 1) * 7), 'mu']]);
-			dn.reverse().forEach((r) => L.push([[' ' + [...r].map((ch) => (ch === ' ' ? ' ' : '█').repeat(cw) + ' ').join(''), 'g']]));
-			L.push(blank(), section('CONTRIBUTIONS', 'yours, everywhere · 52 weeks'));
-			const weeks = Math.min(40, w - 5);
-			['Mon', '   ', 'Wed', '   ', 'Fri'].forEach((d, r) => {
-				let s = '';
-				for (let k = 40 - weeks; k < 40; k++) s += shade(contrib[k * 7 + r]);
-				L.push([[' ' + d + ' ', 'mu'], [s, 'g']]);
+			// The PR flow chart gets the rows the calendar (11) and the keys (2) leave: up to
+			// 3 each way, or none in a short pane, so the calendar always fits.
+			const h = Math.min(3, Math.floor((rows - L.length - 2 - 11 - 2) / 2));
+			if (h >= 1) {
+				L.push(blank(), section('PR FLOW', '7d · ▲ opened · ▼ merged'));
+				const cw = Math.max(2, Math.floor((w - 2) / 7) - 1);
+				const up = columns(opened, h, 12), dn = columns(mergedD, h, 12);
+				up.forEach((r) => L.push([[' ' + [...r].map((ch) => ch.repeat(cw) + ' ').join(''), 'm']]));
+				L.push([[' ' + '─'.repeat((cw + 1) * 7), 'mu']]);
+				dn.reverse().forEach((r) => L.push([[' ' + [...r].map((ch) => (ch === ' ' ? ' ' : '█').repeat(cw) + ' ').join(''), 'g']]));
+			}
+			// The calendar: a column per week (Sunday at the top), a square per day, today last.
+			const now = new Date();
+			const weeks = clamp(Math.floor((w - 5) / 2), 4, 53);
+			const lastSunday = DAYS - 1 - now.getDay();
+			const start = lastSunday - (weeks - 1) * 7;
+			const shown = contrib.slice(Math.max(0, start));
+			const top = Math.max(1, ...shown);
+			const total = shown.reduce((a, b) => a + b, 0);
+			L.push(blank(), section('CONTRIBUTIONS', `${total} in ${weeks} weeks`));
+			// Month names over the week where each month starts.
+			let months = '';
+			for (let k = 0; k < weeks; k++) {
+				const at = new Date(now.getTime() - (DAYS - 1 - (start + k * 7)) * 86_400_000);
+				const first = k === 0 ? at.getDate() <= 14 : at.getDate() <= 7;
+				// Only where the whole name fits before the last week's column ends.
+				if (first && months.length <= k * 2 && k * 2 + 3 <= weeks * 2) months = months.padEnd(k * 2) + MONTHS[at.getMonth()];
+			}
+			L.push([['     ' + months.slice(0, weeks * 2), 'mu']]);
+			['   ', 'Mon', '   ', 'Wed', '   ', 'Fri', '   '].forEach((d, r) => {
+				const row: Line = [[' ' + d + ' ', 'mu']];
+				for (let k = 0; k < weeks; k++) {
+					const i = start + k * 7 + r;
+					// Days after today, in this week's column, stay blank.
+					row.push(i >= DAYS ? ['  ', 'fg'] : ['■ ', level(contrib[i] ?? 0, top)]);
+				}
+				L.push(row);
 			});
+			const legend: Line = [[' '.repeat(Math.max(1, 5 + weeks * 2 - 18)) + 'less ', 'mu']];
+			(['h0', 'h1', 'h2', 'h3', 'h4'] as const).forEach((c) => legend.push(['■ ', c]));
+			legend.push(['more', 'mu']);
+			L.push(legend);
 			L.push(blank(), keys('↑↓ account  ↵ open  [w]indow  [r]efresh  [q]uit'));
 			return L;
 		},

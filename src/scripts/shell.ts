@@ -16,6 +16,8 @@ const ESC = '\x1b[';
 // page theme in global.css (.term), so output follows theme changes.
 const SGR: Record<string, string> = {
 	fg: '39', mu: '90', dim: '30', acc: '92', g: '32', r: '31', y: '33', b: '34', c: '36', m: '35', o: '91', inv: '7',
+	// Heat-map levels: the terminal has one green, so faint, plain and bold steps of it.
+	h0: '30', h1: '2;32', h2: '2;32', h3: '32', h4: '1;32',
 };
 const paint = (text: string, c = 'fg') => `${ESC}${SGR[c] ?? '39'}m${text}${ESC}0m`;
 const link = (url: string, text = url) => `\x1b]8;;${url}\x1b\\${paint(text, 'b')}\x1b]8;;\x1b\\`;

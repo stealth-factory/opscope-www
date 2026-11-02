@@ -3,7 +3,8 @@
  * each a run of text with a colour class (see global.css, .c-*).
  */
 
-export type Colour = 'fg' | 'mu' | 'dim' | 'acc' | 'g' | 'r' | 'y' | 'b' | 'c' | 'm' | 'o' | 'inv';
+// h0-h4: heat-map levels, from an empty cell to the busiest (theme green mixed into the background).
+export type Colour = 'fg' | 'mu' | 'dim' | 'acc' | 'g' | 'r' | 'y' | 'b' | 'c' | 'm' | 'o' | 'inv' | 'h0' | 'h1' | 'h2' | 'h3' | 'h4';
 export type Seg = [string, Colour?];
 export type Line = Seg[];
 
