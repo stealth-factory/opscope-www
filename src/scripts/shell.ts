@@ -133,7 +133,7 @@ export async function startShell() {
 		line(`${paint('theme:', 'mu')} ${arg}`);
 	};
 
-	// A casual run (the demo on load, or a pane's title bar) quits on any key or click.
+	// A casual run (from a pane's title bar) quits on any key or click.
 	const run = (name: string, casual = false) => {
 		// Own keys only, so `opscope constructor` is not taken for a widget.
 		const make = Object.hasOwn(demos, name) ? demos[name] : undefined;
@@ -553,51 +553,12 @@ export async function startShell() {
 		ghost = false;
 	};
 
-	// On a wide screen, a moment after load the prompt types `opscope clocks` and runs it:
-	// the shell shows what it is for. Any key or click stops it. Phones keep the headline.
-	const ATTRACT = 'opscope clocks';
+	// Wide screens get focus on a click that stops a run; phones scroll the shell into view.
 	const wide = matchMedia('(min-width: 860px)');
-	let attract = 0;
-	let typing = 0;
-	const stopAttract = () => {
-		clearTimeout(attract);
-		attract = 0;
-		if (!typing) return;
-		// Take back the half-typed command, and leave an empty prompt with its hint.
-		typing = 0;
-		out(`\r${ESC}J`);
-		prompt();
-		hint();
-	};
-	const autoRun = () => {
-		attract = 0;
-		typing = 0;
-		out('\n');
-		history.push(ATTRACT);
-		at = history.length;
-		run(ATTRACT.split(' ')[1], true);
-	};
-	const startAttract = () => {
-		attract = 0;
-		if (running || menu || keyed) return;
-		unghost();
-		if (reduced.matches) {
-			out(ATTRACT);
-			return autoRun();
-		}
-		const step = () => {
-			if (typing < ATTRACT.length) {
-				out(ATTRACT[typing++]);
-				attract = window.setTimeout(step, 40);
-			} else attract = window.setTimeout(autoRun, 300);
-		};
-		step();
-	};
-	// A click or tap in the shell stops the demo on load, or a casual run.
+	// A click or tap in the shell stops a casual run (one started from a pane's title bar).
 	host.addEventListener('pointerdown', () => {
-		if (attract) stopAttract();
-		else if (running?.casual) running.stop();
-		else return;
+		if (!running?.casual) return;
+		running.stop();
 		// The redraw can swallow this click's own focus; on a wide screen, focus so typing works.
 		// (On a phone that would open the keyboard unasked.)
 		// Focus once the press ends: the browser's own mousedown would take the focus away again.
@@ -607,7 +568,6 @@ export async function startShell() {
 	document.addEventListener('opscope:run', (e) => {
 		const name = (e as CustomEvent).detail;
 		if (typeof name !== 'string') return;
-		stopAttract();
 		const again = running !== null && shell.dataset.running === name;
 		if (running) running.stop();
 		if (menu) {
@@ -637,7 +597,6 @@ export async function startShell() {
 	});
 
 	term.onData = (data) => {
-		if (attract) stopAttract();
 		if (running?.casual && !data.startsWith('\x1b[<')) return running.stop();
 		if (!data.startsWith('\x1b[<')) {
 			keyed = true;
@@ -737,5 +696,4 @@ export async function startShell() {
 	prompt();
 	hint();
 	requestAnimationFrame(() => requestAnimationFrame(() => pane?.scrollTo(0, 0)));
-	if (wide.matches) attract = window.setTimeout(startAttract, 1500);
 }
