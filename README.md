@@ -8,8 +8,9 @@ Try opscope itself with `npx opscope`.
 Built with [Astro](https://astro.build). The whole page is a terminal screen:
 a shell pane with the pitch and install commands beside panes running widgets,
 a `2:widgets` window that shows all 17 with group filters and type-to-filter,
-and a tmux-style status line that switches windows and terminal colour themes
-(Catppuccin Mocha, Tokyo Night, Gruvbox Dark).
+and a tmux-style status line that switches windows and picks one of 50 colour
+themes (`src/data/themes.ts`; opscope Dusk is the default, `?theme=<id>` links
+to another).
 
 ## Develop
 

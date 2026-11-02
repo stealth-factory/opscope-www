@@ -2,17 +2,11 @@
 import Base from '../layouts/Base.astro';
 import Pane from '../components/Pane.astro';
 import { groups, homeWidgets, widgets } from '../data/widgets';
-import { themes } from '../data/themes';
+import { defaultTheme, themeGroups as sections, themes } from '../data/themes';
 
 const home = homeWidgets.map((name) => widgets.find((w) => w.name === name)!);
 const themeIds = themes.map((t) => t.id);
-const themeGroups = [
-	{ label: 'hacker films', themes: themes.filter((t) => t.from === 'hacker') },
-	{ label: 'terminal classics', themes: themes.filter((t) => t.from === 'terminal') },
-	{ label: 'vs code favourites', themes: themes.filter((t) => t.from === 'vscode') },
-	{ label: 'soft, low contrast', themes: themes.filter((t) => t.from === 'soft') },
-	{ label: 'light', themes: themes.filter((t) => t.from === 'light') },
-];
+const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filter((t) => t.group === g.id) }));
 ---
 
 <Base
@@ -93,11 +87,11 @@ const themeGroups = [
 			<span class="info">{widgets.length} widgets · Linux · macOS · AGPL-3.0</span>
 			<div class="theme-picker">
 				<button type="button" class="theme" data-theme-toggle aria-haspopup="true" aria-expanded="false" aria-controls="theme-menu">
-					theme:{' '}<span data-theme-name>{themeIds[0]}</span>{' '}▴
+					theme:{' '}<span data-theme-name>{defaultTheme}</span>{' '}▴
 				</button>
 				<div class="theme-menu" id="theme-menu" role="menu" aria-label="Terminal theme" hidden>
 					{
-						themeGroups.map((g) => (
+						themeSections.map((g) => (
 							<div role="group" aria-label={g.label}>
 								<p class="theme-group" aria-hidden="true"># {g.label}</p>
 								{g.themes.map((t) => (
@@ -123,7 +117,7 @@ const themeGroups = [
 	runDemos();
 </script>
 
-<script define:vars={{ themeIds }}>
+<script define:vars={{ themeIds, defaultTheme }}>
 	const root = document.documentElement;
 
 	// Windows: one visible at a time, chosen by the URL hash. Without JavaScript both show.
@@ -195,7 +189,7 @@ const themeGroups = [
 	const toggle = document.querySelector('[data-theme-toggle]');
 	const menu = document.getElementById('theme-menu');
 	const items = [...menu.querySelectorAll('[data-theme-id]')];
-	const current = () => (themeIds.includes(root.dataset.theme) ? root.dataset.theme : themeIds[0]);
+	const current = () => (themeIds.includes(root.dataset.theme) ? root.dataset.theme : defaultTheme);
 	const setTheme = (id, save) => {
 		root.dataset.theme = id;
 		name.textContent = id;
