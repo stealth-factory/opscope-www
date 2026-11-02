@@ -1,17 +1,278 @@
 ---
+import Base from '../layouts/Base.astro';
+import Pane from '../components/Pane.astro';
+import { groups, screens, widgets } from '../data/widgets';
+import { defaultTheme, themeGroups as sections, themes } from '../data/themes';
+
+const pick = (names: readonly string[]) => names.map((name) => widgets.find((w) => w.name === name)!);
+const [first, ...rest] = screens;
+const themeIds = themes.map((t) => t.id);
+const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filter((t) => t.group === g.id) }));
 ---
 
-<html lang="en-GB">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<meta name="generator" content={Astro.generator} />
-		<title>opscope</title>
-	</head>
-	<body>
-		<h1>opscope</h1>
-		<p>Sci-fi hacker panels for your terminal, except every number on them is real.</p>
-		<pre><code>npx opscope</code></pre>
-	</body>
-</html>
+<Base
+	title="opscope · terminal panels where every number is real"
+	description="Sci-fi hacker panels for your terminal, except every number on them is real. Seventeen widgets for Linux and macOS. Run them with npx opscope."
+>
+	<div class="screen">
+		<header class="topbar">
+			<span><strong>opscope</strong> · ~/src · <span data-window-title>{first.id}</span></span>
+			<nav aria-label="Links">
+				<a href="https://github.com/stealth-factory/opscope">github</a>
+				<a href="https://github.com/stealth-factory/opscope#readme">docs</a>
+				<a href="https://www.npmjs.com/package/opscope">npm</a>
+			</nav>
+		</header>
+
+		<main>
+			<section class="window" id={first.id} data-window={first.id} aria-label={first.title}>
+				<div class="home">
+					<section class="shell" aria-label="Shell">
+						<div class="shell-bar"><span>0 · zsh</span><span>~/src</span></div>
+						<div class="shell-body">
+							<p><span class="green">~/src</span> <span class="accent">$</span> opscope --about</p>
+							<p class="muted"># Hollywood called. They want their terminal back.</p>
+							<h1>Terminal panels where every number is <span class="accent">real</span>.</h1>
+							<p class="muted">
+								Sci-fi hacker panels from the movies, except these ones tell you the truth. Seventeen widgets for Linux and
+								macOS, each a single self-contained binary. The panes on this screen show what some of them look like, with made-up numbers.
+							</p>
+							<pre class="cmds"><span class="muted"># run it, nothing to install</span>
+<span class="accent">$</span> npx opscope         <span class="muted"># the launcher</span>
+<span class="accent">$</span> npx opscope clocks  <span class="muted"># needs no setup</span>
+<span class="accent">$</span> npx opscope doctor  <span class="muted"># what this machine has</span></pre>
+							<p class="muted">
+								Also on Homebrew and as Debian packages.{' '}
+								<a href="https://github.com/stealth-factory/opscope#getting-them">Other ways to get it</a>
+							</p>
+							<p class="muted">
+								<a href="#dashboard">Switch to the dashboard</a>, <a href="#widgets">browse all {widgets.length} widgets</a>, or pick a window in the status line below.
+							</p>
+							<p><span class="green">~/src</span> <span class="accent">$</span> <span class="cursor" aria-hidden="true"></span></p>
+						</div>
+					</section>
+					<div class="tiles">
+						{pick(first.widgets).map((w, i) => <Pane widget={w} n={i + 1} />)}
+					</div>
+				</div>
+			</section>
+
+			{
+				rest.map((sc) => (
+					<section class="window" id={sc.id} data-window={sc.id} aria-label={sc.title}>
+						<div class="home full">
+							<div class="tiles">
+								{pick(sc.widgets).map((w, i) => (
+									<Pane widget={w} n={i + 1} />
+								))}
+							</div>
+						</div>
+					</section>
+				))
+			}
+
+			<section class="window" id="widgets" data-window="widgets" aria-label="All widgets">
+				<div class="filter" data-filter hidden>
+					<label for="q">~/widgets $ grep</label>
+					<input id="q" type="search" placeholder="type to filter, e.g. github" autocomplete="off" spellcheck="false" />
+					<div role="group" aria-label="Group" style="display: flex; flex-wrap: wrap; gap: 6px">
+						<button type="button" class="chip" data-group="all" aria-pressed="true">all</button>
+						{
+							groups.map((g) => (
+								<button type="button" class="chip" data-group={g.key} aria-pressed="false">
+									{g.label}
+								</button>
+							))
+						}
+					</div>
+					<span class="count" data-count aria-live="polite">{widgets.length} of {widgets.length}</span>
+				</div>
+				<div class="gallery">
+					{widgets.map((w, i) => <Pane widget={w} n={i + 1} />)}
+				</div>
+				<p class="empty" data-empty hidden>No widget matches. Try another word, or pick “all”.</p>
+			</section>
+		</main>
+
+		<nav class="status" aria-label="Windows">
+			<span class="session">[opscope]</span>
+			{
+				screens.map((sc, i) => (
+					<a href={`#${sc.id}`} data-win={sc.id}>
+						{i + 1}:{sc.id}
+					</a>
+				))
+			}
+			<a href="#widgets" data-win="widgets">{screens.length + 1}:widgets</a>
+			<span class="spacer"></span>
+			<span class="info">{widgets.length} widgets · Linux · macOS · AGPL-3.0</span>
+			<div class="theme-picker">
+				<button type="button" class="theme" data-theme-toggle aria-haspopup="true" aria-expanded="false" aria-controls="theme-menu">
+					theme:{' '}<span data-theme-name>{defaultTheme}</span>{' '}▴
+				</button>
+				<div class="theme-menu" id="theme-menu" role="menu" aria-label="Terminal theme" hidden>
+					{
+						themeSections.map((g) => (
+							<div role="group" aria-label={g.label}>
+								<p class="theme-group" aria-hidden="true"># {g.label}</p>
+								{g.themes.map((t) => (
+									<button type="button" role="menuitemradio" aria-checked="false" data-theme-id={t.id} title={'film' in t ? `after ${t.film}` : undefined} style={`background:${t.bg};color:${t.fg}`}>
+										<span class="theme-mark" style={`color:${t.accent}`} aria-hidden="true">●</span>
+										<span class="theme-label">{t.name}</span>
+										<span class="swatches" aria-hidden="true">
+											{[t.red, t.green, t.yellow, t.blue, t.magenta, t.cyan].map((c) => <i style={`background:${c}`} />)}
+										</span>
+									</button>
+								))}
+							</div>
+						))
+					}
+				</div>
+			</div>
+		</nav>
+	</div>
+</Base>
+
+<script>
+	import { runDemos } from '../scripts/run-demos';
+	runDemos();
+</script>
+
+<script define:vars={{ themeIds, defaultTheme }}>
+	const root = document.documentElement;
+
+	// Windows: one visible at a time, chosen by the URL hash. Without JavaScript both show.
+	const windows = [...document.querySelectorAll('[data-window]')];
+	const tabs = [...document.querySelectorAll('[data-win]')];
+	const title = document.querySelector('[data-window-title]');
+	const show = () => {
+		// #opscope was the first window's old name; keep old links working.
+		const want = location.hash.slice(1) === 'opscope' ? windows[0].id : location.hash.slice(1);
+		const id = windows.some((w) => w.id === want) ? want : windows[0].id;
+		windows.forEach((w) => (w.hidden = w.id !== id));
+		tabs.forEach((t) => {
+			const on = t.dataset.win === id;
+			t.textContent = t.textContent.replace(/\*$/, '') + (on ? '*' : '');
+			if (on) t.setAttribute('aria-current', 'page');
+			else t.removeAttribute('aria-current');
+		});
+		if (title) title.textContent = id;
+		if (want === id) window.scrollTo(0, 0);
+	};
+	window.addEventListener('hashchange', show);
+	show();
+
+	// Gallery filter: group chips plus free text over name, group, line and needs
+	// (from data-search, not the pane's text, which holds the live demo).
+	const filter = document.querySelector('[data-filter]');
+	const input = document.getElementById('q');
+	const chips = [...document.querySelectorAll('.chip')];
+	const panes = [...document.querySelectorAll('#widgets .pane')];
+	const count = document.querySelector('[data-count]');
+	const empty = document.querySelector('[data-empty]');
+	let group = 'all';
+	const apply = () => {
+		const q = input.value.trim().toLowerCase();
+		let n = 0;
+		panes.forEach((p) => {
+			const ok = (group === 'all' || p.dataset.group === group) && (!q || p.dataset.search.includes(q));
+			p.hidden = !ok;
+			if (ok) n++;
+		});
+		count.textContent = `${n} of ${panes.length}`;
+		empty.hidden = n > 0;
+	};
+	filter.hidden = false;
+	chips.forEach((c) =>
+		c.addEventListener('click', () => {
+			group = c.dataset.group;
+			chips.forEach((x) => x.setAttribute('aria-pressed', String(x === c)));
+			apply();
+		}),
+	);
+	input.addEventListener('input', apply);
+
+	// Focus a pane by clicking its title bar.
+	document.querySelectorAll('.pane-bar').forEach((bar) =>
+		bar.addEventListener('click', () => {
+			const pane = bar.closest('.pane');
+			const on = !pane.classList.contains('focused');
+			document.querySelectorAll('.pane.focused').forEach((p) => {
+				p.classList.remove('focused');
+				p.querySelector('.pane-bar').setAttribute('aria-pressed', 'false');
+			});
+			pane.classList.toggle('focused', on);
+			bar.setAttribute('aria-pressed', String(on));
+		}),
+	);
+
+	// Theme: pick a terminal palette from the status-line menu. Remembered on this
+	// browser; ?theme=<id> in the URL picks one for a shared link.
+	const name = document.querySelector('[data-theme-name]');
+	const toggle = document.querySelector('[data-theme-toggle]');
+	const menu = document.getElementById('theme-menu');
+	const items = [...menu.querySelectorAll('[data-theme-id]')];
+	const current = () => (themeIds.includes(root.dataset.theme) ? root.dataset.theme : defaultTheme);
+	const setTheme = (id, save) => {
+		root.dataset.theme = id;
+		name.textContent = id;
+		items.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.themeId === id)));
+		if (save) {
+			try {
+				localStorage.setItem('opscope-theme', id);
+			} catch {}
+		}
+	};
+	const fromUrl = new URLSearchParams(location.search).get('theme');
+	setTheme(themeIds.includes(fromUrl) ? fromUrl : current(), false);
+	const openMenu = (on) => {
+		menu.hidden = !on;
+		toggle.setAttribute('aria-expanded', String(on));
+		if (!on) return;
+		// Keep the menu on screen when the status line wraps and the button sits at the left.
+		menu.style.right = '0';
+		const left = menu.getBoundingClientRect().left;
+		if (left < 8) menu.style.right = `${left - 8}px`;
+		(items.find((b) => b.getAttribute('aria-checked') === 'true') ?? items[0]).focus();
+	};
+	toggle.addEventListener('click', () => (menu.hidden ? openMenu(true) : closeMenu()));
+	items.forEach((b, i) => {
+		b.addEventListener('click', () => {
+			setTheme(b.dataset.themeId, true);
+			openMenu(false);
+			toggle.focus();
+		});
+		// Hovering or arrowing previews a theme; leaving the menu restores the choice.
+		b.addEventListener('focus', () => (root.dataset.theme = b.dataset.themeId));
+		b.addEventListener('mouseenter', () => (root.dataset.theme = b.dataset.themeId));
+		b.addEventListener('keydown', (e) => {
+			const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+			if (step) {
+				e.preventDefault();
+				items[(i + step + items.length) % items.length].focus();
+			}
+		});
+	});
+	const restore = () => (root.dataset.theme = name.textContent);
+	// Leaving the menu with the pointer goes back to the focused item's preview, or the chosen theme.
+	menu.addEventListener('mouseleave', () => {
+		const focused = items.find((b) => b === document.activeElement);
+		root.dataset.theme = focused ? focused.dataset.themeId : name.textContent;
+	});
+	// Tabbing out of the menu drops the preview too.
+	menu.addEventListener('focusout', (e) => menu.contains(e.relatedTarget) || restore());
+	const closeMenu = () => {
+		if (menu.hidden) return;
+		openMenu(false);
+		restore();
+	};
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape' && !menu.hidden) {
+			closeMenu();
+			toggle.focus();
+		}
+	});
+	document.addEventListener('click', (e) => {
+		if (!e.target.closest('.theme-picker')) closeMenu();
+	});
+</script>

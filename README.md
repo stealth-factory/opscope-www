@@ -5,8 +5,14 @@ sci-fi hacker panels for your terminal, except every number on them is real.
 
 Try opscope itself with `npx opscope`.
 
-Built with [Astro](https://astro.build). The page is still a placeholder; the
-landing page and widget gallery design is in progress.
+Built with [Astro](https://astro.build). The whole page is a terminal screen:
+a `1:factory` window with the pitch and install commands beside six panes of
+software-factory widgets, a `2:dashboard` window of eight panes, four across (both
+sets live in `screens` in `src/data/widgets.ts`), a `3:widgets` window that
+shows all 17 with group filters and type-to-filter,
+and a tmux-style status line that switches windows and picks one of 50 colour
+themes (`src/data/themes.ts`; opscope Dusk is the default, `?theme=<id>` links
+to another).
 
 ## Develop
 
@@ -22,9 +28,20 @@ Needs Node 22 or newer.
 ## Layout
 
 ```text
-public/        static files copied as-is (favicon, previews)
-src/pages/     one .astro file per page
+src/data/          widget list and terminal themes
+src/scripts/       tui.ts (text-mode kit) and demos.ts (one demo per widget)
+src/components/    Pane.astro, one widget pane
+src/layouts/       page shell, theme CSS variables
+src/pages/         index.astro
 ```
+
+### Widget demos
+
+Each pane runs a text-mode demo of its widget, drawn in the browser from
+`src/scripts/demos.ts` with made-up numbers. Layouts follow the widgets' own
+README mock-ups. A demo only animates while its pane is on screen, and shows a
+still frame when the visitor prefers reduced motion. To add a widget, add it to
+`src/data/widgets.ts` and give it a function in `demos.ts`.
 
 ## Licence
 

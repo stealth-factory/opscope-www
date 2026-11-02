@@ -1,0 +1,38 @@
+---
+import '../styles/global.css';
+import { themeCss, themes } from '../data/themes';
+
+interface Props {
+	title: string;
+	description: string;
+}
+
+const { title, description } = Astro.props;
+const ids = JSON.stringify(themes.map((t) => t.id));
+---
+
+<!doctype html>
+<html lang="en-GB">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>{title}</title>
+		<meta name="description" content={description} />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" />
+		<style is:inline set:html={themeCss}></style>
+		<script is:inline define:vars={{ ids }}>
+			try {
+				const saved = localStorage.getItem('opscope-theme');
+				if (saved && JSON.parse(ids).includes(saved)) document.documentElement.dataset.theme = saved;
+			} catch {}
+		</script>
+	</head>
+	<body>
+		<slot />
+	</body>
+</html>
