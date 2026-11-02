@@ -103,7 +103,8 @@ export async function startShell() {
 	};
 
 	const run = (name: string) => {
-		const make = demos[name];
+		// Own keys only, so `opscope constructor` is not taken for a widget.
+		const make = Object.hasOwn(demos, name) ? demos[name] : undefined;
 		if (!make) {
 			line(`${paint('opscope:', 'r')} no widget called ${name}. ${paint('ls', 'acc')} lists them.`);
 			return false;
