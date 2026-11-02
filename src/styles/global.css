@@ -115,6 +115,13 @@ main {
 	.home {
 		grid-template-columns: minmax(420px, 1fr) 2.6fr;
 	}
+	/* The shell stays fixed on the main screen, between the header and the status line,
+	   while the panes beside it scroll. */
+	.home > .shell {
+		position: sticky;
+		top: calc(var(--topbar-height, 0px) + 6px);
+		align-self: start;
+	}
 	.home.full {
 		grid-template-columns: 1fr;
 	}
@@ -139,7 +146,12 @@ main {
 	flex-direction: column;
 	border: 1px solid var(--accent);
 	border-radius: 4px;
-	min-height: 520px;
+	/* One screen tall, between the header and the status line; anything longer
+	   scrolls inside the pane, not the page. */
+	height: calc(100vh - var(--topbar-height, 0px) - var(--status-height, 0px) - 12px);
+	height: calc(100dvh - var(--topbar-height, 0px) - var(--status-height, 0px) - 12px);
+	min-height: 360px;
+	overflow: hidden;
 }
 .shell-bar {
 	display: flex;
@@ -157,6 +169,11 @@ main {
 	display: flex;
 	flex-direction: column;
 	gap: 14px;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-width: thin;
+	scrollbar-color: var(--border) transparent;
 }
 .shell-body p {
 	margin: 0;
@@ -219,6 +236,9 @@ main {
 	z-index: 1;
 	margin: 0;
 	background: var(--bg);
+}
+.shell.running .shell-body {
+	overflow: hidden;
 }
 .shell.running .shell-body > :not(.term) {
 	visibility: hidden;

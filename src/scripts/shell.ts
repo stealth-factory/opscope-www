@@ -111,6 +111,8 @@ export async function startShell() {
 		}
 		const demo = make();
 		shell.classList.add('running');
+		// The program covers the pane from its top, so bring the pane's own scroll back there.
+		host.parentElement?.scrollTo(0, 0);
 		// Clear scrollback so no old line peeks above the program in the spare height.
 		out(`${ESC}?1049h${ESC}3J${ESC}?25l`);
 		const draw = () => {
@@ -152,7 +154,12 @@ export async function startShell() {
 				term.onResize = null;
 				out(`${ESC}?1049l${ESC}?25h`);
 				shell.classList.remove('running');
-				requestAnimationFrame(() => term.fit());
+				requestAnimationFrame(() => {
+					term.fit();
+					// Back at the prompt: show the terminal again if the pane's text is taller than the pane.
+					const pane = host.parentElement;
+					if (pane) pane.scrollTop = pane.scrollHeight;
+				});
 				running = null;
 				prompt();
 			},

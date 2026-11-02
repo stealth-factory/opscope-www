@@ -163,11 +163,15 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	window.addEventListener('hashchange', show);
 	show();
 
-	// The header wraps to more lines on narrow screens; the sticky gallery filter sits just below it.
-	const topbar = document.querySelector('.topbar');
-	const fitUnderTopbar = () => root.style.setProperty('--topbar-height', `${topbar.offsetHeight}px`);
-	new ResizeObserver(fitUnderTopbar).observe(topbar);
-	fitUnderTopbar();
+	// The header and status line wrap to more lines on narrow screens. Sticky things
+	// (the gallery filter, the shell pane) fit between them by their measured heights.
+	const fitBars = () => {
+		root.style.setProperty('--topbar-height', `${document.querySelector('.topbar').offsetHeight}px`);
+		root.style.setProperty('--status-height', `${document.querySelector('.status').offsetHeight}px`);
+	};
+	const bars = new ResizeObserver(fitBars);
+	document.querySelectorAll('.topbar, .status').forEach((el) => bars.observe(el));
+	fitBars();
 
 	// Gallery filter: group chips plus free text over name, group, line and needs
 	// (from data-search, not the pane's text, which holds the live demo).
