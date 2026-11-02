@@ -36,7 +36,9 @@ const ansi = (line: Line, cols: number) => {
 };
 
 const names = widgets.map((w) => w.name);
-const COMMANDS = ['help', 'ls', 'widgets', 'opscope', 'npx', 'theme', 'install', 'about', 'docs', 'github', 'clear', 'whoami', 'history', 'exit'];
+const COMMANDS = ['help', 'ls', 'widgets', 'opscope', 'npx', 'theme', 'install', 'about', 'docs', 'github', 'releases', 'changelog', 'clear', 'whoami', 'history', 'exit'];
+// The release log: every version's notes, on GitHub.
+const RELEASES = 'https://github.com/stealth-factory/opscope/releases';
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 
 export async function startShell() {
@@ -95,6 +97,7 @@ export async function startShell() {
 			['install [apt]', 'ways to get opscope: npx, brew, apt'],
 			['about', 'what this is'],
 			['docs', 'links to the docs'],
+			['releases', 'what changed in each version'],
 			['clear', 'clear the screen (or ctrl-l)'],
 			['help', 'pick a command from a menu'],
 			['/', 'commands with suggestions as you type'],
@@ -234,6 +237,10 @@ export async function startShell() {
 				line(link('https://github.com/stealth-factory/opscope#readme'));
 				if (arg && names.includes(arg)) line(link(docsUrl(arg)));
 				return;
+			case 'releases':
+			case 'changelog':
+				line(paint('what changed in each version:', 'mu'));
+				return line(link(RELEASES));
 			case 'clear':
 				return clear();
 			case 'whoami':
@@ -365,6 +372,7 @@ export async function startShell() {
 		{ name: 'install', hint: 'get opscope: npx, brew, apt' },
 		{ name: 'theme', hint: 'change the colours' },
 		{ name: 'docs', hint: 'links to the docs' },
+		{ name: 'releases', hint: 'what changed in each version' },
 		{ name: 'about', hint: 'what this is' },
 		{ name: 'help', hint: 'pick from a menu' },
 		{ name: 'history', hint: 'commands you ran' },
@@ -488,6 +496,7 @@ export async function startShell() {
 			{ label: 'install', hint: 'get opscope: npx, brew, apt', pick: () => typed('install') },
 			{ label: 'theme', hint: 'change the colours', pick: themeMenu },
 			{ label: 'docs', hint: 'links to the docs', pick: () => typed('docs') },
+			{ label: 'releases', hint: 'what changed in each version', pick: () => typed('releases') },
 			{ label: 'about', hint: 'what this is', pick: () => typed('about') },
 			{ label: 'clear', hint: 'clear the screen', pick: () => typed('clear') },
 		]);
