@@ -109,7 +109,7 @@ main {
 /* Wide screens: the shell beside six panes, three across and two down, filling the screen. */
 @media (min-width: 1200px) {
 	.home {
-		grid-template-columns: minmax(360px, 1fr) 2.6fr;
+		grid-template-columns: minmax(420px, 1fr) 2.6fr;
 	}
 	.home.full {
 		grid-template-columns: 1fr;
@@ -169,6 +169,55 @@ main {
 	overflow-x: auto;
 	font: inherit;
 	white-space: pre-wrap;
+}
+/* The shell's terminal (wterm). ANSI slots follow the page theme. */
+.shell-body {
+	position: relative;
+}
+.term {
+	/* Grows into the pane's spare height but never pushes the pane taller. */
+	flex: 1 1 0;
+	min-height: 130px;
+	overflow: hidden;
+	margin-bottom: -10px;
+	--term-fg: var(--fg);
+	--term-bg: var(--bg);
+	--term-cursor: var(--accent);
+	--term-color-0: var(--dim);
+	--term-color-1: var(--red);
+	--term-color-2: var(--green);
+	--term-color-3: var(--yellow);
+	--term-color-4: var(--blue);
+	--term-color-5: var(--magenta);
+	--term-color-6: var(--cyan);
+	--term-color-7: var(--fg);
+	--term-color-8: var(--muted);
+	--term-color-9: var(--orange);
+	--term-color-10: var(--accent);
+	--term-color-11: var(--yellow);
+	--term-color-12: var(--blue);
+	--term-color-13: var(--magenta);
+	--term-color-14: var(--cyan);
+	--term-color-15: var(--fg);
+	--term-font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+	--term-font-size: 13px;
+	--term-line-height: 1.35;
+	--term-row-height: 18px;
+	--term-selection-bg: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.term.ready {
+	cursor: text;
+}
+/* A running widget takes the whole pane, like a full-screen program. */
+.shell.running .term {
+	position: absolute;
+	inset: 8px 10px;
+	z-index: 1;
+	margin: 0;
+	background: var(--bg);
+}
+.shell.running .shell-body > :not(.term) {
+	visibility: hidden;
 }
 .cursor {
 	display: inline-block;

@@ -35,6 +35,15 @@ src/layouts/       page shell, theme CSS variables
 src/pages/         index.astro
 ```
 
+### The shell
+
+The shell pane ends in a real terminal emulator, [wterm](https://github.com/vercel-labs/wterm)
+(`@wterm/dom`), running a small pretend shell in `src/scripts/shell.ts`: `help`,
+`ls`, `opscope <widget>` (runs that widget's demo full-pane, `q` quits),
+`theme <name>`, `install`, `about`, `docs`, `clear`, tab completion and
+history. Nothing runs on a server. Its ANSI colours are mapped to the page
+theme in `global.css` (`.term`), so it follows the theme picker.
+
 ### Widget demos
 
 Each pane runs a text-mode demo of its widget, drawn in the browser from
