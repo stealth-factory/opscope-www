@@ -493,7 +493,8 @@ export async function startShell() {
 		const preview = (i: number) => document.dispatchEvent(new CustomEvent('opscope:theme-preview', { detail: themes[i].id }));
 		open('Which theme? (previews as you move)', list, Math.max(0, themes.findIndex((t) => t.id === was)), {
 			move: preview,
-			cancel: () => document.dispatchEvent(new CustomEvent('opscope:theme-preview', { detail: was })),
+			// End the preview: the page goes back to the chosen theme, as it is now.
+			cancel: () => document.dispatchEvent(new CustomEvent('opscope:theme-preview', { detail: null })),
 		});
 	};
 	// A resize (a phone turning, a window narrowing) redraws an open picker for the new size.
