@@ -41,7 +41,7 @@ export const widgets: Widget[] = [
  */
 export const screens = [
 	{ id: 'factory', title: 'software factory', widgets: ['vercel-deployments', 'github-actions', 'clocks', 'herdr-panes', 'github-prs', 'agent-usage'] },
-	{ id: 'dashboard', title: 'dashboard', widgets: ['latency', 'tailnet', 'netwatch', 'ports', 'clocks', 'google-trends'] },
+	{ id: 'dashboard', title: 'dashboard', widgets: ['github', 'linear', 'google-trends', 'netwatch', 'latency', 'tailnet'] },
 ] as const;
 
 export const docsUrl = (name: string) =>
