@@ -173,7 +173,7 @@ export async function startShell() {
 				seen.disconnect();
 				document.removeEventListener('visibilitychange', sync);
 				reduced.removeEventListener('change', sync);
-				term.onResize = null;
+				term.onResize = idleResize;
 				out(`${ESC}?1049l${ESC}?25h`);
 				shell.classList.remove('running');
 				requestAnimationFrame(() => {
@@ -312,7 +312,8 @@ export async function startShell() {
 	// It is drawn under the prompt and redrawn in place; typing anything else closes it
 	// and starts an ordinary command line.
 	type Item = { label: string; hint: string; pick: () => void };
-	type Menu = { title: string; items: Item[]; at: number; top: number; drawn: number; move?: (i: number) => void; cancel?: () => void };
+	// `lens` holds the visible length of each drawn line, to count its rows after a reflow.
+	type Menu = { title: string; items: Item[]; at: number; top: number; drawn: number; lens: number[]; move?: (i: number) => void; cancel?: () => void };
 	let menu: Menu | null = null;
 	// Any-motion mouse reports (for hover) in SGR form, only while a picker is open.
 	const MOUSE_ON = `${ESC}?1003h${ESC}?1006h`;
@@ -323,9 +324,13 @@ export async function startShell() {
 	};
 	const visible = (m: Menu) => Math.max(3, Math.min(m.items.length, term.rows - 4));
 	const scrolls = (m: Menu) => m.items.length > visible(m);
+	// Rows the drawn picker takes now: the terminal reflows its lines when it narrows.
+	const rowsTaken = (m: Menu) => m.lens.reduce((n, len) => n + Math.max(1, Math.ceil(len / term.cols)), 0);
 	const erase = (m: Menu) => {
-		if (m.drawn) out(`\r${m.drawn > 1 ? `${ESC}${m.drawn - 1}A` : ''}${ESC}J`);
+		const rows = rowsTaken(m);
+		if (rows) out(`\r${rows > 1 ? `${ESC}${rows - 1}A` : ''}${ESC}J`);
 		m.drawn = 0;
+		m.lens = [];
 	};
 	const draw = (m: Menu) => {
 		const n = visible(m);
@@ -352,11 +357,12 @@ export async function startShell() {
 		erase(m);
 		out(lines.join('\n'));
 		m.drawn = lines.length;
+		m.lens = lines.map((l) => [...l.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '')].length);
 		follow();
 	};
 	const open = (title: string, items: Item[], at = 0, more: Partial<Menu> = {}) => {
 		if (!menu) out(`${MOUSE_ON}${ESC}?25l`);
-		menu = { title, items, at, top: 0, drawn: 0, ...more };
+		menu = { title, items, at, top: 0, drawn: 0, lens: [], ...more };
 		draw(menu);
 	};
 	const close = () => {
@@ -417,6 +423,11 @@ export async function startShell() {
 			cancel: () => document.dispatchEvent(new CustomEvent('opscope:theme-preview', { detail: was })),
 		});
 	};
+	// A resize (a phone turning, a window narrowing) redraws an open picker for the new size.
+	const idleResize = () => {
+		if (menu && !running) draw(menu);
+	};
+	term.onResize = idleResize;
 	// SGR mouse reports: ESC [ < button ; column ; row M (press or motion) or m (release).
 	const mouse = (m: Menu, data: string) => {
 		for (const [, b, , y, kind] of data.matchAll(/\x1b\[<(\d+);(\d+);(\d+)([Mm])/g)) {
