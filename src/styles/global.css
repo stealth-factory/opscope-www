@@ -194,6 +194,11 @@ main {
 	scrollbar-width: thin;
 	scrollbar-color: var(--border) transparent;
 }
+.shell-body > * {
+	/* The term fills the pane, so the intro must keep its height and scroll away
+	   rather than shrink (the .cmds block would collapse to nothing). */
+	flex-shrink: 0;
+}
 .shell-body p {
 	margin: 0;
 }
