@@ -150,8 +150,7 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	const tabs = [...document.querySelectorAll('[data-win]')];
 	const title = document.querySelector('[data-window-title]');
 	let shown = null;
-	// How the next switch happens, for analytics: a status-line tab, a pane's title bar,
-	// or (left unset) the back/forward buttons or an edited URL.
+	// How the next switch happens, for analytics: a status-line tab, or (left unset) the back/forward buttons or an edited URL.
 	let via = 'history';
 	const show = () => {
 		// #opscope was the first window's old name; keep old links working.
@@ -223,24 +222,11 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	);
 	input.addEventListener('input', apply);
 
-	// A pane's title bar runs its widget in the shell; the pane the shell is running is lit.
-	document.querySelectorAll('.pane-bar').forEach((bar) => {
-		bar.addEventListener('click', () => {
-			// The shell lives in the first window: from another one, go there first.
-			const home = windows[0];
-			if (home.hidden && home.querySelector('.shell')) {
-				history.pushState(null, '', `#${home.id}`);
-				via = 'pane';
-				show();
-			}
-			document.dispatchEvent(new CustomEvent('opscope:run', { detail: bar.closest('.pane').dataset.name }));
-		});
-	});
+	// The pane whose widget the shell is running is lit.
 	document.addEventListener('opscope:shell-running', (e) => {
 		document.querySelectorAll('.pane').forEach((p) => {
 			const on = p.dataset.name === e.detail;
 			p.classList.toggle('focused', on);
-			p.querySelector('.pane-bar')?.setAttribute('aria-pressed', String(on));
 		});
 	});
 

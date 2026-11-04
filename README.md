@@ -80,9 +80,9 @@ the page reports:
 | Event            | Data                                                | When                                                               |
 | ---------------- | --------------------------------------------------- | ------------------------------------------------------------------ |
 | `outbound_click` | `link`, `widget` (widget docs only)                 | a GitHub, npm, install or widget-docs link                         |
-| `window_view`    | `window`, `via` (tab / pane / history / link)       | switching factory / dashboard / widgets, or landing on one by link |
-| `widget_click`   | `widget`, `part` (bar / demo), `window`             | a click on a widget pane's title bar or live demo                  |
-| `widget_run`     | `widget`, `via` (pane / shell)                      | a widget demo starts                                               |
+| `window_view`    | `window`, `via` (tab / history / link)              | switching factory / dashboard / widgets, or landing on one by link |
+| `widget_click`   | `widget`, `part` (bar / demo), `window`             | a click on a widget's title bar or demo (no action)                |
+| `widget_run`     | `widget`                                            | `opscope <widget>` runs in the shell                               |
 | `widget_filter`  | `group`                                             | a gallery group chip                                               |
 | `widget_search`  | `query` (40 chars at most), `results`               | gallery search, once typing stops                                  |
 | `theme_menu`     | `action` (open / dismiss), `theme` (the chosen one) | the theme menu opens, or closes without a pick                     |

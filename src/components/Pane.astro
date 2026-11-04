@@ -10,10 +10,10 @@ const { widget, n } = Astro.props;
 ---
 
 <section class="pane" data-name={widget.name} data-group={widget.group} data-search={[widget.name, widget.group, widget.line, widget.needs].join(' ').toLowerCase()} aria-label={`${widget.name} pane`}>
-	<button type="button" class="pane-bar" aria-pressed="false">
+	<div class="pane-bar">
 		<span class="pane-title">{n} · {widget.name}</span>
 		<span class="pane-cmd">npx opscope {widget.name}</span>
-	</button>
+	</div>
 	<div class="pane-body">
 		<pre class="demo" data-demo={widget.name}>starting {widget.name}…</pre>
 	</div>
