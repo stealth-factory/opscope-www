@@ -330,7 +330,7 @@ function vercel(): Demo {
 function github(): Demo {
 	const awaitingR = new Roll(486), readyR = new Roll(180), mergedR = new Roll(17), api = new Roll(4100, 1200);
 	let draft = 16, dropped = 4, todayAt = 0;
-	const refresh = new Refresh(9, () => api.set(api.target > 3000 ? api.target - Math.round(rnd(20, 90)) : 4980), 32);
+	const refresh = new Refresh(9, () => api.set(api.target > 3000 ? api.target - Math.round(rnd(20, 90)) : 4980), 7);
 	const opened = [3, 1, 7, 2, 11, 9, 6], mergedD = [1, 4, 2, 5, 7, 3, 8];
 	// A year of contributions, one per day ending today: busy weeks and quiet ones,
 	// weekdays busier than weekends, some days with nothing.
@@ -880,14 +880,22 @@ function trends(): Demo {
 	];
 	let sel = 0, n = 0, newAt = 0;
 	let left = { q: 'old example term', traffic: '1000+' };
+	// When the last term left, and when the feed was last fetched (ages count real time).
+	let leftAt = Date.now() - 15_000;
+	let fetchedAt = Date.now();
 	const refresh = new Refresh(15, () => {
-		terms.forEach((t) => { t.seen++; t.started += 5; });
+		const mins = (Date.now() - fetchedAt) / 60_000;
+		fetchedAt = Date.now();
+		terms.forEach((t) => { t.seen++; t.started += mins; });
 		if (++n % 2) return;
 		const r = rising[(n / 2) % rising.length];
 		// A term already in the feed rises again rather than showing twice.
 		const again = terms.findIndex((t) => t.q === r.q);
 		const gone = again >= 0 ? terms.splice(again, 1)[0] : terms.pop();
-		if (gone) left = gone;
+		if (gone) {
+			left = gone;
+			leftAt = Date.now();
+		}
 		terms.unshift({ ...r, started: 0, seen: 0 });
 		sel = 0;
 		newAt = Date.now();
@@ -910,7 +918,7 @@ function trends(): Demo {
 				[['  ' + pad('SEARCH', 22) + pad('TRAFFIC', 8) + pad('STARTED', 8) + pad('SEEN', 5) + 'NEWS', 'c']],
 			];
 			terms.forEach((t, i) => L.push([[i === sel ? '▸ ' : '  ', 'acc'], [pad(t.q, 22), i === 0 && fresh && blink(400) ? 'g' : i === sel ? 'acc' : 'fg'], [pad(t.traffic, 8), 'y'], [pad(ago(t.started * 60), 8), 'mu'], [pad(t.seen ? t.seen + '×' : 'new', 5), t.seen ? 'mu' : 'g'], [t.news, 'mu']]));
-			L.push(blank(), [[' LEFT THE FEED', 'acc']], [[' this widget\'s own observation · kept an hour', 'mu']], [[`  ${left.q}  `, 'fg'], [`was ${left.traffic} · gone ${ago(refresh.ago + 15 * (n % 2))} ago`, 'mu']]);
+			L.push(blank(), [[' LEFT THE FEED', 'acc']], [[' this widget\'s own observation · kept an hour', 'mu']], [[`  ${left.q}  `, 'fg'], [`was ${left.traffic} · gone ${ago((Date.now() - leftAt) / 1000)} ago`, 'mu']]);
 			L.push(blank(), keys('↑↓ select  tab section  ←→ region  [↵] news  [/] filter  [q]uit'));
 			return L;
 		},
