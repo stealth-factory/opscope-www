@@ -61,6 +61,33 @@ README mock-ups. A demo only animates while its pane is on screen, and shows a
 still frame when the visitor prefers reduced motion. To add a widget, add it to
 `src/data/widgets.ts` and give it a function in `demos.ts`.
 
+## Analytics
+
+Events go through one function, `track()` in `src/lib/analytics.ts`, which
+sends each one to every provider that is on:
+
+- **Vercel Web Analytics:** always (`<Analytics />` in `Base.astro`).
+- **Google Analytics 4:** only when `PUBLIC_GA_MEASUREMENT_ID` (a `G-…` ID) is
+  set at build time. Set it in Vercel for **Production only**, so previews
+  and local builds stay out of GA. With it unset, nothing loads from Google.
+
+Both count page views on their own. `src/scripts/analytics.ts` decides what
+the page reports:
+
+| Event            | Data                                  | When                                            |
+| ---------------- | ------------------------------------- | ----------------------------------------------- |
+| `outbound_click` | `link`, `widget` (widget docs only)   | a GitHub, npm, install or widget-docs link      |
+| `window_view`    | `window`                              | switching factory / dashboard / widgets         |
+| `theme_select`   | `theme`, `via` (menu / shell / link)  | a theme is picked, or arriving on `?theme=`     |
+| `widget_filter`  | `group`                               | a gallery group chip                            |
+| `widget_search`  | `query` (40 chars at most), `results` | gallery search, once typing stops               |
+| `widget_run`     | `widget`, `via` (pane / shell)        | a widget demo starts                            |
+| `shell_command`  | `command` (its name, else `unknown`)  | a command in the shell                          |
+| `command_copy`   | `command`                             | copying an `npx opscope …` line                 |
+
+Values come from fixed sets, apart from the search query. The opscope CLI
+reports `opscope_start` to the same Vercel project.
+
 ## Licence
 
 To be decided.

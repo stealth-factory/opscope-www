@@ -1,0 +1,25 @@
+---
+/**
+ * Google Analytics 4 (gtag.js), only when PUBLIC_GA_MEASUREMENT_ID is set at
+ * build time. Set it for Production only in Vercel, so previews and local
+ * builds stay out of GA. Events go through src/lib/analytics.ts.
+ */
+import { PUBLIC_GA_MEASUREMENT_ID as id } from 'astro:env/client';
+---
+
+{
+	id && (
+		<>
+			<script is:inline async src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`} />
+			<script is:inline define:vars={{ id }}>
+				window.dataLayer = window.dataLayer || [];
+				window.gtag = function () {
+					dataLayer.push(arguments);
+				};
+				gtag('js', new Date());
+				// No Google signals or ad personalisation: page views and our own events only.
+				gtag('config', id, { allow_google_signals: false, allow_ad_personalization_signals: false });
+			</script>
+		</>
+	)
+}

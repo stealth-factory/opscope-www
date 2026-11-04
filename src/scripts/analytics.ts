@@ -1,22 +1,15 @@
 /**
- * Custom events for Vercel Web Analytics. Pageviews come from <Analytics /> in
- * Base.astro; this adds what visitors do on the page.
+ * What visitors do on the page, as analytics events. Page views are counted by
+ * the providers themselves; src/lib/analytics.ts sends each event to all of them
+ * (Vercel Web Analytics, and GA4 when it is configured).
  *
  * Every event carries at most two properties, and every value comes from a
  * fixed set (widget, theme and window ids, link names), except the gallery
  * search query, which is clipped. Nothing identifies a visitor.
- * The opscope CLI sends `opscope_start` to the same project.
+ * The opscope CLI sends `opscope_start` to the same Vercel project.
  */
-import { track } from '@vercel/analytics';
+import { track as send, type EventData as Data } from '../lib/analytics';
 import { widgets } from '../data/widgets';
-
-type Data = Record<string, string | number | boolean | null>;
-
-const send = (name: string, data: Data) => {
-	try {
-		track(name, data);
-	} catch {}
-};
 
 const names = new Set(widgets.map((w) => w.name));
 
