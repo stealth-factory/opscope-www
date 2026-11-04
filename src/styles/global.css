@@ -508,16 +508,24 @@ main {
 	flex-grow: 1;
 }
 /* On phones the sticky status line would eat the screen. Keep it to one row: drop
-   the info text, the session name and the word "theme", tighten the padding, and
+   the info text and the session name, hide the word "theme" from sight, tighten the padding, and
    cut a long theme name short rather than wrap. */
 @media (max-width: 600px) {
 	.status {
 		flex-wrap: nowrap;
 	}
 	.status .info,
-	.status .session,
-	.status .theme-word {
+	.status .session {
 		display: none;
+	}
+	/* Hidden from sight only, so a screen reader still names the button "theme". */
+	.status .theme-word {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
 	}
 	.status a,
 	.status button {
@@ -533,6 +541,13 @@ main {
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+}
+/* Narrower than the smallest phone (or zoomed right in), even one row can't hold
+   the links, so let them wrap rather than run off the screen. */
+@media (max-width: 319px) {
+	.status {
+		flex-wrap: wrap;
 	}
 }
 .status .info {
