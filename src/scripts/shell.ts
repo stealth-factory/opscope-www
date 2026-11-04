@@ -83,8 +83,8 @@ export async function startShell() {
 	let buf = '';
 	const history: string[] = [];
 	let at = 0;
-	let running: { stop: () => void; casual: boolean } | null = null;
-	// The panes' title bars light up the pane whose widget the shell is running.
+	let running: { stop: () => void } | null = null;
+	// The pane whose widget the shell is running lights up.
 	const showing = (name: string | null) => document.dispatchEvent(new CustomEvent('opscope:shell-running', { detail: name }));
 
 	const help = () => {
@@ -136,8 +136,7 @@ export async function startShell() {
 		line(`${paint('theme:', 'mu')} ${arg}`);
 	};
 
-	// A casual run (from a pane's title bar) quits on any key or click.
-	const run = (name: string, casual = false) => {
+	const run = (name: string) => {
 		// Own keys only, so `opscope constructor` is not taken for a widget.
 		const make = Object.hasOwn(demos, name) ? demos[name] : undefined;
 		if (!make) {
@@ -145,7 +144,7 @@ export async function startShell() {
 			return false;
 		}
 		const demo = make();
-		document.dispatchEvent(new CustomEvent('opscope:widget-run', { detail: { name, via: casual ? 'pane' : 'shell' } }));
+		document.dispatchEvent(new CustomEvent('opscope:widget-run', { detail: name }));
 		shell.classList.add('running');
 		// The program covers the pane from its top, so bring the pane's own scroll back there.
 		pane?.scrollTo(0, 0);
@@ -154,8 +153,7 @@ export async function startShell() {
 		const draw = () => {
 			const rows = Math.max(4, term.rows - 1);
 			const frame = demo.render(term.cols, rows).slice(0, rows).map((l) => ansi(l, term.cols) + `${ESC}K`);
-			const quit = casual ? 'any key quits' : 'q quit';
-			const bar = ansi([[` ${quit} · ${name} · demo with made-up numbers · npx opscope ${name} for the real one`, 'mu']], term.cols);
+			const bar = ansi([[` q quit · ${name} · demo with made-up numbers · npx opscope ${name} for the real one`, 'mu']], term.cols);
 			term.write(`${ESC}H${frame.join('\r\n')}${ESC}J${ESC}${term.rows};1H${bar}${ESC}K`);
 		};
 		// Animate only while the shell is on screen, the tab is visible and motion is allowed,
@@ -190,7 +188,6 @@ export async function startShell() {
 		});
 		showing(name);
 		running = {
-			casual,
 			stop() {
 				clearInterval(timer);
 				clearInterval(frames);
@@ -207,7 +204,6 @@ export async function startShell() {
 				running = null;
 				showing(null);
 				prompt();
-				if (casual) hint();
 			},
 		};
 		return true;
@@ -576,43 +572,6 @@ export async function startShell() {
 		ghost = false;
 	};
 
-	// Wide screens get focus on a click that stops a run; phones scroll the shell into view.
-	const wide = matchMedia('(min-width: 860px)');
-	// A click or tap in the shell stops a casual run (one started from a pane's title bar).
-	host.addEventListener('pointerdown', () => {
-		if (!running?.casual) return;
-		running.stop();
-		// The redraw can swallow this click's own focus; on a wide screen, focus so typing works.
-		// (On a phone that would open the keyboard unasked.)
-		// Focus once the press ends: the browser's own mousedown would take the focus away again.
-		if (wide.matches) window.addEventListener('pointerup', () => term.focus(), { once: true });
-	});
-	// A pane's title bar runs its widget here; on a phone the shell scrolls into view first.
-	document.addEventListener('opscope:run', (e) => {
-		const name = (e as CustomEvent).detail;
-		if (typeof name !== 'string') return;
-		const again = running !== null && shell.dataset.running === name;
-		if (running) running.stop();
-		if (menu) {
-			const m = menu;
-			close();
-			m.cancel?.();
-			prompt();
-		}
-		// A second click on the running pane's bar just stops it.
-		if (again) return;
-		if (!wide.matches) shell.scrollIntoView({ behavior: reduced.matches ? 'auto' : 'smooth', block: 'start' });
-		unghost();
-		// The command replaces whatever was half typed at the prompt.
-		buf = '';
-		out(`\r${ESC}J`);
-		prompt();
-		line(`opscope ${name}`);
-		history.push(`opscope ${name}`);
-		at = history.length;
-		run(name, true);
-		follow();
-	});
 	document.addEventListener('opscope:shell-running', (e) => {
 		const name = (e as CustomEvent).detail;
 		if (typeof name === 'string') shell.dataset.running = name;
@@ -620,7 +579,6 @@ export async function startShell() {
 	});
 
 	term.onData = (data) => {
-		if (running?.casual && !data.startsWith('\x1b[<')) return running.stop();
 		if (!data.startsWith('\x1b[<')) {
 			keyed = true;
 			unghost();

@@ -44,15 +44,15 @@ export function startAnalytics() {
 	const landed = [...windows].find((w) => !w.hidden);
 	if (landed && landed !== windows[0]) send('window_view', { window: landed.id, via: 'link' });
 
-	// Switching windows, and how: a status-line tab, a pane's title bar, or back/forward.
+	// Switching windows, and how: a status-line tab, or back/forward.
 	// index.astro raises this from its window switch.
 	document.addEventListener('opscope:window-shown', (e) => {
 		const { id, via } = (e as CustomEvent<{ id: string; via: string }>).detail;
 		send('window_view', { window: id, via });
 	});
 
-	// Widget panes: the title bar (which runs the widget in the shell) or the live demo
-	// itself, which does nothing but shows people expect it to. Counted where it was clicked.
+	// Widget panes: a click on the title bar or the live demo. Neither does anything; the
+	// clicks show which widgets people are drawn to. Counted where it was clicked.
 	document.addEventListener('click', (e) => {
 		const t = e.target as Element | null;
 		const pane = t?.closest?.<HTMLElement>('.pane[data-name]');
@@ -105,8 +105,7 @@ export function startAnalytics() {
 		send('shell_command', { command: (e as CustomEvent<string>).detail });
 	});
 	document.addEventListener('opscope:widget-run', (e) => {
-		const { name, via } = (e as CustomEvent<{ name: string; via: string }>).detail;
-		send('widget_run', { widget: name, via });
+		send('widget_run', { widget: (e as CustomEvent<string>).detail });
 	});
 
 	// Copying a command from the page: the strongest sign someone is about to run it.
