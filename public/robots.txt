@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://opscope.stealth-factory.co/sitemap-index.xml

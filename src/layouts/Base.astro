@@ -12,7 +12,7 @@ interface Props {
 const { title, description } = Astro.props;
 const url = new URL(Astro.url.pathname, Astro.site).href;
 const image = new URL('/og.png', Astro.site).href;
-const imageAlt = 'The opscope page: a terminal pane beside live widget panes for deployments, CI runs and clocks.';
+const imageAlt = 'opscope: dashboard widgets for your terminal. Run npx opscope. Beside the headline, three widget panes: GitHub Actions runs, clocks and coding-agent usage.';
 // Structured data, so search engines can show opscope as a free developer tool.
 const app = JSON.stringify({
 	'@context': 'https://schema.org',
@@ -21,11 +21,15 @@ const app = JSON.stringify({
 	description,
 	url,
 	image,
+	screenshot: image,
 	applicationCategory: 'DeveloperApplication',
 	operatingSystem: 'Linux, macOS',
 	offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
 	license: 'https://www.gnu.org/licenses/agpl-3.0.html',
 	codeRepository: 'https://github.com/stealth-factory/opscope',
+	downloadUrl: 'https://www.npmjs.com/package/opscope',
+	installUrl: 'https://github.com/stealth-factory/opscope#getting-them',
+	author: { '@type': 'Organization', name: 'Stealth Factory', url: 'https://github.com/stealth-factory' },
 });
 const ids = JSON.stringify(themes.map((t) => t.id));
 ---
@@ -39,6 +43,7 @@ const ids = JSON.stringify(themes.map((t) => t.id));
 		<meta name="description" content={description} />
 		<link rel="canonical" href={url} />
 		<meta name="theme-color" content="#22252b" />
+		<meta name="robots" content="index, follow, max-image-preview:large" />
 		<meta property="og:type" content="website" />
 		<meta property="og:site_name" content="opscope" />
 		<meta property="og:locale" content="en_GB" />
@@ -57,6 +62,9 @@ const ids = JSON.stringify(themes.map((t) => t.id));
 		<meta name="twitter:image:alt" content={imageAlt} />
 		<script type="application/ld+json" set:html={app} />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+		<link rel="manifest" href="/site.webmanifest" />
+		<link rel="sitemap" href="/sitemap-index.xml" />
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" />

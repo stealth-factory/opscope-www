@@ -1,0 +1,13 @@
+{
+	"name": "opscope",
+	"short_name": "opscope",
+	"description": "Dashboard widgets for your terminal.",
+	"start_url": "/",
+	"display": "browser",
+	"background_color": "#1b1d22",
+	"theme_color": "#22252b",
+	"icons": [
+		{ "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any" },
+		{ "src": "/apple-touch-icon.png", "type": "image/png", "sizes": "180x180" }
+	]
+}
