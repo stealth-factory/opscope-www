@@ -138,6 +138,9 @@ export const toHtml = (lines: Line[], cols: number, rows: number) =>
  * redraws every visible demo a few times a second (run-demos.ts, FRAME_MS).
  */
 
+/** Visible demos redraw this often between data ticks, so spinners spin and numbers roll. */
+export const FRAME_MS = 120;
+
 const SPIN = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏';
 /** A braille spinner frame from the clock; `offset` staggers several spinners. */
 export const spin = (offset = 0) => SPIN[(Math.floor(Date.now() / 90) + offset) % SPIN.length];

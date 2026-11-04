@@ -272,7 +272,8 @@ const repos = ['acme/web-app', 'acme/api', 'acme/deploy-tools', 'labs/toy', 'acm
 function vercel(): Demo {
 	const act = hist(48, () => (Math.random() < 0.5 ? 0 : Math.round(rnd(0, 6))));
 	const build = hist(60, () => rnd(150, 240));
-	type D = { ok: boolean; proj: string; t: number; age: number; sha: string; br: string; msg: string; building?: boolean };
+	// doneAt: when a build finished, to flash it for a moment.
+	type D = { ok: boolean; proj: string; t: number; age: number; sha: string; br: string; msg: string; building?: boolean; doneAt?: number };
 	const rec: D[] = Array.from({ length: 6 }, (_, i) => ({ ok: i !== 2, proj: pick(['site', 'marketing', 'docs', 'web-app']), t: rnd(18, 240), age: 600 + i * 1700, sha: Math.random().toString(16).slice(2, 9), br: pick(['main', 'feature/timetable', 'fix/a11y']), msg: pick(commits) }));
 	let n = 0;
 	const ready = new Roll(179), errors = new Roll(21), total = new Roll(200);
@@ -286,6 +287,7 @@ function vercel(): Demo {
 				cur.t += 1;
 				if (cur.t > 70) {
 					cur.building = false;
+					cur.doneAt = Date.now();
 					cur.ok = Math.random() > 0.15;
 					push(build, cur.t, 60);
 					(cur.ok ? ready : errors).add(1);
@@ -315,7 +317,7 @@ function vercel(): Demo {
 			];
 			rec.forEach((d, i) => {
 				// Just finished: lit for a few seconds.
-				const fresh = i === 0 && !d.building && d.age < 4;
+				const fresh = !d.building && !!d.doneAt && Date.now() - d.doneAt < 4000;
 				const st: [string, Colour] = d.building ? [`${spin()} Building`, 'y'] : d.ok ? ['● Ready   ', fresh && blink(400) ? 'acc' : 'g'] : ['✖ Error   ', 'r'];
 				L.push([[i === 0 ? '▸' : ' ', 'acc'], [st[0] + ' ', st[1]], [pad(d.proj, 10), 'fg'], [padL(fmtDur(d.t), 6), 'mu'], [padL(ago(d.age), 5) + '  ', 'mu'], [d.sha + ' ', 'c'], [d.br, 'm']]);
 				L.push(d.building ? stepLine(['cloning', 'installing', 'building', 'uploading', 'assigning'], d.t / 70, cols, 'y') : [['   ' + d.msg, 'mu']]);

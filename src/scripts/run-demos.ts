@@ -1,5 +1,5 @@
 import { demos } from './demos';
-import { bar, blank, header, scan, spin, toHtml, type Line } from './tui';
+import { bar, blank, FRAME_MS, header, scan, spin, toHtml, type Line } from './tui';
 
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -14,9 +14,6 @@ const stacked = (pane: HTMLElement) => {
 	const grid = pane.parentElement;
 	return !!grid && pane.offsetWidth >= grid.clientWidth - 1;
 };
-
-/** Visible demos redraw this often between data ticks, so spinners spin and numbers roll. */
-const FRAME_MS = 120;
 
 /** How long a pane shows its start-up loader the first time it comes into view. */
 const BOOT_MS = 1500;
