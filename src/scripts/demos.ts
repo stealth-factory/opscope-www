@@ -811,7 +811,8 @@ function months(): Demo {
 			const off = -now.getTimezoneOffset() / 60;
 			// How far through the day and the year we are, by the second.
 			const y0 = new Date(now.getFullYear(), 0, 1).getTime(), y1 = new Date(now.getFullYear() + 1, 0, 1).getTime();
-			const dayOfYear = Math.floor((now.getTime() - y0) / 864e5) + 1;
+			// From calendar dates, so a daylight-saving shift can't move the day number.
+			const dayOfYear = Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(now.getFullYear(), 0, 1)) / 864e5) + 1;
 			const dayFrac = (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / 86400;
 			const bw = Math.max(8, cols - 24);
 			const dayBar = bar(dayFrac, bw), yearBar = bar((now.getTime() - y0) / (y1 - y0), bw);

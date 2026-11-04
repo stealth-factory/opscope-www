@@ -101,7 +101,14 @@ export function runDemos() {
 		const sync = () => {
 			clearInterval(timer);
 			clearInterval(frames);
-			if (!visible || document.hidden || reduced.matches) return;
+			if (reduced.matches) {
+				// No loader under reduced motion: mark it long finished and show the
+				// demo's still frame, even if the loader was mid-way.
+				bootAt = 1;
+				if (visible) draw();
+				return;
+			}
+			if (!visible || document.hidden) return;
 			if (!bootAt) bootAt = Date.now();
 			timer = window.setInterval(loop, demo.every);
 			if (demo.every > FRAME_MS) frames = window.setInterval(draw, FRAME_MS);
