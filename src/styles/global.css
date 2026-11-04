@@ -150,11 +150,15 @@ main {
 	gap: 6px;
 }
 /* Stacked in one column, a pane is as tall as its demo needs (run-demos.ts sets
-   the height), so nothing is clipped. */
+   the height), so nothing is clipped. Gallery rows keep their 520px floor, so
+   while two columns still fit (and nothing sets a height) they stay as tall as
+   on a desktop. */
 @media (max-width: 859px) {
-	.tiles,
-	.gallery {
+	.tiles {
 		grid-auto-rows: minmax(320px, auto);
+	}
+	.gallery {
+		grid-auto-rows: minmax(520px, auto);
 	}
 }
 
