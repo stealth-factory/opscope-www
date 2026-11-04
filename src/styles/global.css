@@ -503,10 +503,32 @@ main {
 .status .spacer {
 	flex-grow: 1;
 }
-/* On phones the sticky status line would eat the screen; drop the info text. */
+/* On phones the sticky status line would eat the screen. Keep it to one row: drop
+   the info text, the session name and the word "theme", tighten the padding, and
+   cut a long theme name short rather than wrap. */
 @media (max-width: 600px) {
-	.status .info {
+	.status {
+		flex-wrap: nowrap;
+	}
+	.status .info,
+	.status .session,
+	.status .theme-word {
 		display: none;
+	}
+	.status a,
+	.status button {
+		flex-shrink: 0;
+		padding: 0 8px;
+	}
+	.status .theme-picker,
+	.status .theme {
+		flex-shrink: 1;
+		min-width: 0;
+	}
+	.status .theme-name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 }
 .status .info {
