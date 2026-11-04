@@ -150,13 +150,19 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	const tabs = [...document.querySelectorAll('[data-win]')];
 	const title = document.querySelector('[data-window-title]');
 	let shown = null;
+	// How the next switch happens, for analytics: a status-line tab, a pane's title bar,
+	// or (left unset) the back/forward buttons or an edited URL.
+	let via = 'history';
 	const show = () => {
 		// #opscope was the first window's old name; keep old links working.
 		const want = location.hash.slice(1) === 'opscope' ? windows[0].id : location.hash.slice(1);
 		const id = windows.some((w) => w.id === want) ? want : windows[0].id;
-		// Tell analytics about a switch to another window, but not about the first load.
-		if (shown !== null && shown !== id) document.dispatchEvent(new CustomEvent('opscope:window-shown', { detail: id }));
+		// Tell analytics about a switch to another window, not the first load (a link
+		// straight to a window is counted in analytics.ts, which loads after this runs).
+		const switched = shown !== null && shown !== id && via;
+		if (switched) document.dispatchEvent(new CustomEvent('opscope:window-shown', { detail: { id, via: switched } }));
 		shown = id;
+		via = 'history';
 		windows.forEach((w) => (w.hidden = w.id !== id));
 		tabs.forEach((t) => {
 			const on = t.dataset.win === id;
@@ -168,6 +174,7 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 		if (want === id) window.scrollTo(0, 0);
 	};
 	window.addEventListener('hashchange', show);
+	tabs.forEach((t) => t.addEventListener('click', () => (via = 'tab')));
 	show();
 
 	// The header and status line wrap to more lines on narrow screens. Sticky things
@@ -217,6 +224,7 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 			const home = windows[0];
 			if (home.hidden && home.querySelector('.shell')) {
 				history.pushState(null, '', `#${home.id}`);
+				via = 'pane';
 				show();
 			}
 			document.dispatchEvent(new CustomEvent('opscope:run', { detail: bar.closest('.pane').dataset.name }));
@@ -240,6 +248,7 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	// `via` says who chose it (menu, shell), for analytics; none means just restoring it.
 	// A ?theme= link is counted in analytics.ts, which loads after this runs.
 	const setTheme = (id, save, via) => {
+		const from = name.textContent;
 		root.dataset.theme = id;
 		name.textContent = id;
 		items.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.themeId === id)));
@@ -248,7 +257,7 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 				localStorage.setItem('opscope-theme', id);
 			} catch {}
 		}
-		if (via) document.dispatchEvent(new CustomEvent('opscope:theme-chosen', { detail: { id, via } }));
+		if (via) document.dispatchEvent(new CustomEvent('opscope:theme-chosen', { detail: { id, via, from } }));
 	};
 	// The shell's `theme <name>` command.
 	document.addEventListener('opscope:theme', (e) => setTheme(e.detail, true, 'shell'));
@@ -260,7 +269,10 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	});
 	const fromUrl = new URLSearchParams(location.search).get('theme');
 	setTheme(themeIds.includes(fromUrl) ? fromUrl : current(), false);
+	// For analytics: the menu opening, and closing without a pick.
+	const menuEvent = (action) => document.dispatchEvent(new CustomEvent('opscope:theme-menu', { detail: action }));
 	const openMenu = (on) => {
+		if (on && menu.hidden) menuEvent('open');
 		menu.hidden = !on;
 		toggle.setAttribute('aria-expanded', String(on));
 		if (!on) return;
@@ -298,6 +310,7 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	menu.addEventListener('focusout', (e) => menu.contains(e.relatedTarget) || restore());
 	const closeMenu = () => {
 		if (menu.hidden) return;
+		menuEvent('dismiss');
 		openMenu(false);
 		restore();
 	};

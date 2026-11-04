@@ -3,7 +3,7 @@
  * the providers themselves; src/lib/analytics.ts sends each event to all of them
  * (Vercel Web Analytics, and GA4 when it is configured).
  *
- * Every event carries at most two properties, and every value comes from a
+ * Every event carries a few flat properties, and every value comes from a
  * fixed set (widget, theme and window ids, link names), except the gallery
  * search query, which is clipped. Nothing identifies a visitor.
  * The opscope CLI sends `opscope_start` to the same Vercel project.
@@ -39,18 +39,44 @@ export function startAnalytics() {
 		if (e.button === 1) outbound(e);
 	});
 
-	// Switching windows, however it happens (status line, back button, a pane's title bar).
-	// index.astro raises this from its window switch, and not on the first load.
+	// Arriving on a window other than the first, from a link like /#widgets.
+	const windows = document.querySelectorAll<HTMLElement>('[data-window]');
+	const landed = [...windows].find((w) => !w.hidden);
+	if (landed && landed !== windows[0]) send('window_view', { window: landed.id, via: 'link' });
+
+	// Switching windows, and how: a status-line tab, a pane's title bar, or back/forward.
+	// index.astro raises this from its window switch.
 	document.addEventListener('opscope:window-shown', (e) => {
-		send('window_view', { window: (e as CustomEvent<string>).detail });
+		const { id, via } = (e as CustomEvent<{ id: string; via: string }>).detail;
+		send('window_view', { window: id, via });
 	});
+
+	// Widget panes: the title bar (which runs the widget in the shell) or the live demo
+	// itself, which does nothing but shows people expect it to. Counted where it was clicked.
+	document.addEventListener('click', (e) => {
+		const t = e.target as Element | null;
+		const pane = t?.closest?.<HTMLElement>('.pane[data-name]');
+		if (!pane?.dataset.name || t?.closest('a')) return;
+		const part = t?.closest('.pane-bar') ? 'bar' : t?.closest('.pane-body') ? 'demo' : null;
+		if (!part) return;
+		send('widget_click', { widget: pane.dataset.name, part, window: pane.closest<HTMLElement>('[data-window]')?.id ?? 'other' });
+	});
+
+	// The shell: the first time someone clicks into it, once per page view.
+	document.querySelector('[data-term]')?.addEventListener('pointerdown', () => send('shell_focus'), { once: true });
 
 	// Themes, from the status-line menu or the shell (see index.astro), or a ?theme= link.
 	const fromUrl = new URLSearchParams(location.search).get('theme');
 	if (fromUrl && fromUrl === document.documentElement.dataset.theme) send('theme_select', { theme: fromUrl, via: 'link' });
 	document.addEventListener('opscope:theme-chosen', (e) => {
-		const { id, via } = (e as CustomEvent<{ id: string; via: string }>).detail;
-		send('theme_select', { theme: id, via });
+		const { id, via, from } = (e as CustomEvent<{ id: string; via: string; from: string }>).detail;
+		send('theme_select', { theme: id, via, from });
+	});
+	// The status-line theme menu: opened, or closed without a pick. With the chosen
+	// theme, not a previewed one: what people had on when they went looking.
+	document.addEventListener('opscope:theme-menu', (e) => {
+		const theme = document.querySelector('[data-theme-name]')?.textContent ?? 'other';
+		send('theme_menu', { action: (e as CustomEvent<string>).detail, theme });
 	});
 
 	// Gallery: group chips, and the search box once typing settles.

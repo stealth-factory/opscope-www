@@ -69,21 +69,26 @@ sends each one to every provider that is on:
 - **Vercel Web Analytics:** always (`<Analytics />` in `Base.astro`).
 - **Google Analytics 4:** only when `PUBLIC_GA_MEASUREMENT_ID` (a `G-…` ID) is
   set at build time. Set it in Vercel for **Production only**, so previews
-  and local builds stay out of GA. With it unset, nothing loads from Google.
+  and local builds stay out of GA. To see event data in GA's standard reports,
+  register its keys (`window`, `via`, `widget`, `part`, `group`, `theme`,
+  `from`, `action`, `command`, `link`) as event-scoped custom dimensions. With it unset, nothing loads from Google.
 
 Both count page views on their own. `src/scripts/analytics.ts` decides what
 the page reports:
 
-| Event            | Data                                  | When                                            |
-| ---------------- | ------------------------------------- | ----------------------------------------------- |
-| `outbound_click` | `link`, `widget` (widget docs only)   | a GitHub, npm, install or widget-docs link      |
-| `window_view`    | `window`                              | switching factory / dashboard / widgets         |
-| `theme_select`   | `theme`, `via` (menu / shell / link)  | a theme is picked, or arriving on `?theme=`     |
-| `widget_filter`  | `group`                               | a gallery group chip                            |
-| `widget_search`  | `query` (40 chars at most), `results` | gallery search, once typing stops               |
-| `widget_run`     | `widget`, `via` (pane / shell)        | a widget demo starts                            |
-| `shell_command`  | `command` (its name, else `unknown`)  | a command in the shell                          |
-| `command_copy`   | `command`                             | copying an `npx opscope …` line                 |
+| Event            | Data                                                | When                                                               |
+| ---------------- | --------------------------------------------------- | ------------------------------------------------------------------ |
+| `outbound_click` | `link`, `widget` (widget docs only)                 | a GitHub, npm, install or widget-docs link                         |
+| `window_view`    | `window`, `via` (tab / pane / history / link)       | switching factory / dashboard / widgets, or landing on one by link |
+| `widget_click`   | `widget`, `part` (bar / demo), `window`             | a click on a widget pane's title bar or live demo                  |
+| `widget_run`     | `widget`, `via` (pane / shell)                      | a widget demo starts                                               |
+| `widget_filter`  | `group`                                             | a gallery group chip                                               |
+| `widget_search`  | `query` (40 chars at most), `results`               | gallery search, once typing stops                                  |
+| `theme_menu`     | `action` (open / dismiss), `theme` (the chosen one) | the theme menu opens, or closes without a pick                     |
+| `theme_select`   | `theme`, `via` (menu / shell / link), `from`        | a theme is picked, or arriving on `?theme=`                        |
+| `shell_focus`    | none                                                | the first click into the shell, once per page view                 |
+| `shell_command`  | `command` (its name, else `unknown`)                | a command in the shell                                             |
+| `command_copy`   | `command`                                           | copying an `npx opscope …` line                                    |
 
 Values come from fixed sets, apart from the search query. The opscope CLI
 reports `opscope_start` to the same Vercel project.
