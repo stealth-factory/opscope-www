@@ -156,6 +156,9 @@ const panes = ['github-actions', 'clocks', 'agent-usage'].map((name) => widgets.
 	}
 	.pane-body {
 		min-height: 0;
+		/* run-demos grows a full-width ("stacked") pane to fit its demo; the card's
+		   panes keep their grid size and clip instead. */
+		height: auto !important;
 	}
 	.demo {
 		font-size: 12px;

@@ -20,7 +20,7 @@ const { widget, n } = Astro.props;
 	<footer class="pane-foot">
 		<span>{widget.line}</span>
 		<span class="muted">
-			needs: <span class="yellow">{widget.needs}</span> · <a href={docsUrl(widget.name)}>docs</a>
+			needs: <span class="yellow">{widget.needs}</span> · <a href={docsUrl(widget.name)} target="_blank" rel="noopener noreferrer">docs</a>
 		</span>
 	</footer>
 </section>

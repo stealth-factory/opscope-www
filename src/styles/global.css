@@ -149,6 +149,18 @@ main {
 	grid-auto-rows: 520px;
 	gap: 6px;
 }
+/* Stacked in one column, a pane is as tall as its demo needs (run-demos.ts sets
+   the height), so nothing is clipped. Gallery rows keep their 520px floor, so
+   while two columns still fit (and nothing sets a height) they stay as tall as
+   on a desktop. */
+@media (max-width: 859px) {
+	.tiles {
+		grid-auto-rows: minmax(320px, auto);
+	}
+	.gallery {
+		grid-auto-rows: minmax(520px, auto);
+	}
+}
 
 /* shell pane */
 .shell {
@@ -166,11 +178,11 @@ main {
 	overflow: hidden;
 }
 /* Stacked layout (phones, narrow windows), where the panes sit below the shell in the
-   same column: the shell takes 40% of the screen; its text scrolls inside it. */
+   same column: the shell takes 70% of the screen; its text scrolls inside it. */
 @media (max-width: 859px) {
 	.shell {
-		height: 40vh;
-		height: 40dvh;
+		height: 70vh;
+		height: 70dvh;
 		min-height: 0;
 	}
 }
@@ -495,10 +507,47 @@ main {
 .status .spacer {
 	flex-grow: 1;
 }
-/* On phones the sticky status line would eat the screen; drop the info text. */
+/* On phones the sticky status line would eat the screen. Keep it to one row: drop
+   the info text and the session name, hide the word "theme" from sight, tighten the padding, and
+   cut a long theme name short rather than wrap. */
 @media (max-width: 600px) {
-	.status .info {
+	.status {
+		flex-wrap: nowrap;
+	}
+	.status .info,
+	.status .session {
 		display: none;
+	}
+	/* Hidden from sight only, so a screen reader still names the button "theme". */
+	.status .theme-word {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+	.status a,
+	.status button {
+		flex-shrink: 0;
+		padding: 0 8px;
+	}
+	.status .theme-picker,
+	.status .theme {
+		flex-shrink: 1;
+		min-width: 0;
+	}
+	.status .theme-name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+}
+/* Narrower than the smallest phone (or zoomed right in), even one row can't hold
+   the links, so let them wrap rather than run off the screen. */
+@media (max-width: 319px) {
+	.status {
+		flex-wrap: wrap;
 	}
 }
 .status .info {
