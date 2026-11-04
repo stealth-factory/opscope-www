@@ -149,6 +149,14 @@ main {
 	grid-auto-rows: 520px;
 	gap: 6px;
 }
+/* Stacked in one column, a pane is as tall as its demo needs (run-demos.ts sets
+   the height), so nothing is clipped. */
+@media (max-width: 859px) {
+	.tiles,
+	.gallery {
+		grid-auto-rows: minmax(320px, auto);
+	}
+}
 
 /* shell pane */
 .shell {

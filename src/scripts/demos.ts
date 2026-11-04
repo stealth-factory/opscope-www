@@ -13,6 +13,8 @@ export interface Demo {
 	every: number;
 	tick(): void;
 	render(cols: number, rows: number): Line[];
+	/** True when the demo fills whatever rows it is given, so it has no natural height. */
+	fills?: boolean;
 }
 
 const ago = (s: number) => (s < 60 ? `${Math.round(s)}s` : s < 3600 ? `${Math.round(s / 60)}m` : s < 86400 ? `${Math.round(s / 3600)}h` : `${Math.round(s / 86400)}d`);
@@ -799,6 +801,7 @@ function matrix(): Demo {
 	let w = 0, h = 0;
 	return {
 		every: 80,
+		fills: true,
 		tick() {
 			drops.forEach((d, x) => {
 				d.y += d.v;
