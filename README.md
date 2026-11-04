@@ -69,9 +69,10 @@ sends each one to every provider that is on:
 - **Vercel Web Analytics:** always (`<Analytics />` in `Base.astro`).
 - **Google Analytics 4:** only when `PUBLIC_GA_MEASUREMENT_ID` (a `G-…` ID) is
   set at build time. Set it in Vercel for **Production only**, so previews
-  and local builds stay out of GA. To see event data in GA's standard reports,
-  register its keys (`window`, `via`, `widget`, `part`, `group`, `theme`,
-  `from`, `action`, `command`, `link`) as event-scoped custom dimensions. With it unset, nothing loads from Google.
+  and local builds stay out of GA. With it unset, gtag.js is not loaded.
+  To see event data in GA's standard reports, register its keys (`window`,
+  `via`, `widget`, `part`, `group`, `theme`, `from`, `action`, `command`,
+  `link`) as event-scoped custom dimensions.
 
 Both count page views on their own. `src/scripts/analytics.ts` decides what
 the page reports:

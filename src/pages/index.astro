@@ -174,7 +174,13 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 		if (want === id) window.scrollTo(0, 0);
 	};
 	window.addEventListener('hashchange', show);
-	tabs.forEach((t) => t.addEventListener('click', () => (via = 'tab')));
+	// Only a tab for another window fires hashchange; the current one would leave
+	// 'tab' set for the next back/forward.
+	tabs.forEach((t) =>
+		t.addEventListener('click', () => {
+			if (t.dataset.win !== shown) via = 'tab';
+		}),
+	);
 	show();
 
 	// The header and status line wrap to more lines on narrow screens. Sticky things
