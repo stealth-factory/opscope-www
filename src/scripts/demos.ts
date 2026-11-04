@@ -884,7 +884,9 @@ function trends(): Demo {
 		terms.forEach((t) => { t.seen++; t.started += 5; });
 		if (++n % 2) return;
 		const r = rising[(n / 2) % rising.length];
-		const gone = terms.pop();
+		// A term already in the feed rises again rather than showing twice.
+		const again = terms.findIndex((t) => t.q === r.q);
+		const gone = again >= 0 ? terms.splice(again, 1)[0] : terms.pop();
 		if (gone) left = gone;
 		terms.unshift({ ...r, started: 0, seen: 0 });
 		sel = 0;
