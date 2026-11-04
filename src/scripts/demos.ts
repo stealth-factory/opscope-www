@@ -5,7 +5,7 @@
  */
 import {
 	bar, blank, clamp, clock, columns, fmtBytes, fmtDur, fmtMs, fmtRate, header, keys, pad, padL, pick, push, rnd,
-	section, spark, stack, walk, BLOCKS, type Colour, type Line,
+	section, spark, stack, walk, blink, spin, BLOCKS, Refresh, Roll, type Colour, type Line,
 } from './tui';
 
 export interface Demo {
@@ -48,7 +48,7 @@ function latency(): Demo {
 		every: 500,
 		tick: sample,
 		render(cols, rows) {
-			const L: Line[] = [header('NETWORK LATENCY MONITOR', cols), [[` ${hosts.length} targets · 0.5s interval · `, 'mu'], [clock(new Date()), 'fg']], blank()];
+			const L: Line[] = [header('NETWORK LATENCY MONITOR', cols), [[` ${hosts.length} targets · 0.5s interval · `, 'mu'], [clock(new Date()), 'fg'], [`  ${spin()} pinging`, 'acc']], blank()];
 			const w = Math.max(6, Math.floor((cols - 14) / 4));
 			L.push([[' ' + pad('HOST', 12), 'c'], [padL('NOW', w) + padL('AVG', w) + padL('MIN', w) + padL('JITTER', w), 'c']]);
 			for (const h of hosts) {
@@ -103,21 +103,23 @@ function tailnet(): Demo {
 			push(p.h, d, 16); push(p.u, u, 16);
 		});
 	for (let i = 0; i < 16; i++) step();
+	const refresh = new Refresh(2, undefined, 1, 500);
 	return {
 		every: 2000,
 		tick: step,
 		render(cols) {
+			refresh.poll();
 			const live = peers.filter((p) => p.h.some((v) => v > 50));
 			const L: Line[] = [
 				header('TAILNET', cols),
 				[[' server-01  ', 'fg'], ['100.64.0.10  ', 'c'], ['example.ts.net', 'mu']],
-				[[' 5 online / 6 peers   ', 'fg'], ['3 direct', 'g'], ['   2 relayed', 'y'], ['   every 2s', 'mu']],
+				[[' 5 online / 6 peers   ', 'fg'], ['3 direct', 'g'], ['   2 relayed', 'y'], ['   ', 'mu'], refresh.seg('polled')],
 				blank(),
 				section('LIVE THROUGHPUT', 'peers moving data'),
 			];
 			for (const p of live) {
 				const d = p.h[p.h.length - 1], u = p.u[p.u.length - 1];
-				L.push([[' ' + pad(p.name, 15), 'fg'], ['↓', 'g'], [spark(p.h), 'g'], [' ↑', 'b'], [spark(p.u), 'b'], [padL(fmtRate(d), 11) + padL(fmtRate(u), 10), 'mu']]);
+				L.push([[(blink(600) ? '⇅' : ' ') + pad(p.name, 15), 'fg'], ['↓', 'g'], [spark(p.h), 'g'], [' ↑', 'b'], [spark(p.u), 'b'], [padL(fmtRate(d), 11) + padL(fmtRate(u), 10), 'mu']]);
 			}
 			L.push(blank(), [[' ' + pad('MACHINE', 17) + pad('OS', 7) + pad('PATH', 8) + padL('RX', 7) + padL('TX', 7) + padL('SEEN', 6), 'c']]);
 			peers.forEach((p, i) => {
@@ -138,6 +140,14 @@ function ports(): Demo {
 		{ port: 5432, bind: 'local', what: 'postgres 17', project: '-', up: 864000, ex: '-' },
 	];
 	const out: number[] = hist(60, () => 0), inn: number[] = hist(60, () => 0);
+	// A dev server that starts, listens for a while, then stops again.
+	const extra = { port: 6006, bind: 'local', what: 'Storybook 9', project: 'ui-kit', up: 0, ex: '-' };
+	let phase = 0;
+	const refresh = new Refresh(4, () => {
+		phase = (phase + 1) % 8;
+		if (phase === 1) { extra.up = 0; rows.splice(2, 0, extra); }
+		if (phase === 6) rows.splice(rows.indexOf(extra), 1);
+	});
 	const step = () => {
 		rows.forEach((r) => (r.up += 1));
 		const burst = Math.random() < 0.3;
@@ -149,10 +159,16 @@ function ports(): Demo {
 		every: 1000,
 		tick: step,
 		render(cols) {
+			refresh.poll();
 			const w = cols - 13;
-			const L: Line[] = [header('DEV SERVERS', cols), [[' 12 listening · ', 'fg'], ['5 yours', 'acc'], [' · ', 'fg'], ['1 reachable off-box', 'y'], ['   every 4s', 'mu']], blank()];
+			const L: Line[] = [header('DEV SERVERS', cols), [[` ${rows.length + 7} listening · `, 'fg'], [`${rows.length} yours`, 'acc'], [' · ', 'fg'], ['1 reachable off-box', 'y'], ['   ', 'mu'], refresh.seg('scanned')], blank()];
 			L.push([[padL('PORT', 6) + '  ' + pad('BIND', 7) + pad('WHAT', 13) + pad('PROJECT', 13) + padL('UP', 5) + '  ' + 'EXPOSED', 'c']]);
-			rows.forEach((r, i) => L.push([[i === 1 ? '▸' : ' ', 'acc'], [padL(r.port, 5) + '  ', 'fg'], [pad(r.bind, 7), r.bind === 'all' ? 'y' : 'mu'], [pad(r.what, 13), 'fg'], [pad(r.project, 13), 'c'], [padL(ago(r.up), 5) + '  ', 'mu'], [r.ex, r.ex === '-' ? 'mu' : 'g']]));
+			rows.forEach((r, i) => {
+				// The new server is still starting for its first few seconds, then lit as new.
+				const starting = r === extra && r.up < 3;
+				const isNew = r === extra && r.up < 9;
+				L.push([[i === 1 ? '▸' : ' ', 'acc'], [padL(r.port, 5) + '  ', isNew ? 'g' : 'fg'], [pad(r.bind, 7), r.bind === 'all' ? 'y' : 'mu'], [pad(r.what, 13), isNew ? 'g' : 'fg'], [pad(r.project, 13), 'c'], [starting ? `${spin()} up  ` : padL(ago(r.up), 5) + '  ', starting ? 'y' : 'mu'], [starting ? 'starting…' : isNew ? 'new' : r.ex, starting ? 'y' : isNew ? 'g' : r.ex === '-' ? 'mu' : 'g']]);
+			});
 			L.push(blank(), section('TRAFFIC', '↑ out above · ↓ in below'));
 			const m = Math.max(...out, ...inn, 1);
 			columns(out.slice(-w).map((v) => (v < m * 0.03 ? 0 : v)), 3, m).forEach((s, i) => L.push([[i === 2 ? padL('↑ ' + fmtRate(out[out.length - 1]), 11) + ' ' : ' '.repeat(12), 'mu'], [s, 'b']]));
@@ -192,7 +208,7 @@ function netwatch(): Demo {
 			const down = procs.reduce((a, p) => a + p.down, 0), up = procs.reduce((a, p) => a + p.up, 0);
 			const L: Line[] = [
 				header('NETWATCH', cols),
-				[[` ${procs.length} processes · ${procs.filter((p) => p.down).length} moving · sorted by total   `, 'fg'], ['every 1s', 'mu']],
+				[[` ${procs.length} processes · ${procs.filter((p) => p.down).length} moving · sorted by total   `, 'fg'], [blink(1000) ? '● ' : '○ ', 'g'], ['every 1s', 'mu']],
 				[[' TCP only · ', 'mu'], ['↓ ' + fmtRate(down), 'g'], ['  ↑ ' + fmtRate(up), 'b']],
 				blank(),
 				section('PROCESS WATCH', '↓ rx, last 2 minutes'),
@@ -216,11 +232,13 @@ function link(): Demo {
 	];
 	const step = () => peers.forEach((p) => push(p.h, Math.max(p.floor, p.base + rnd(-p.jit, p.jit)), 120));
 	for (let i = 0; i < 120; i++) step();
+	const refresh = new Refresh(2, undefined, 0, 400);
 	return {
 		every: 1000,
 		tick: step,
 		render(cols, rows) {
-			const L: Line[] = [header('CONNECTIONS', cols), [[` ${peers.length} inbound · measured by the kernel, nothing sent   `, 'fg'], ['every 2s', 'mu']], blank()];
+			refresh.poll();
+			const L: Line[] = [header('CONNECTIONS', cols), [[` ${peers.length} inbound · measured by the kernel, nothing sent   `, 'fg'], refresh.seg('read')], blank()];
 			L.push([['  ' + pad('PEER', 22) + padL('PORT', 5) + padL('NOW', 6) + padL('FLOOR', 7) + padL('LOSS', 7) + padL('ACHIEVED', 10), 'c']]);
 			const cs: Colour[] = ['c', 'o', 'm'];
 			peers.forEach((p, i) => L.push([['▐ ', cs[i]], [pad(p.peer, 22), 'fg'], [padL(p.port, 5), 'mu'], [padL(Math.round(p.h[p.h.length - 1]) + 'ms', 6), 'fg'], [padL(p.floor + 'ms', 7), 'mu'], [padL(p.loss.toFixed(2) + '%', 7), p.loss ? 'y' : 'mu'], [padL(p.rate, 10), 'g']]));
@@ -240,15 +258,26 @@ function link(): Demo {
 
 /* ── dev & deploy ───────────────────────────────────────────────────── */
 
+/** The line under a running build or job: its current step and a progress bar. */
+const stepLine = (steps: string[], frac: number, cols: number, c: Colour): Line => {
+	const i = clamp(Math.floor(frac * steps.length), 0, steps.length - 1);
+	const label = pad(`${i + 1}/${steps.length} ${steps[i]}`, 18);
+	const b = bar(frac, Math.max(6, cols - 30));
+	return [['   ' + spin() + ' ', c], [label, 'fg'], [b.on, c], [b.off, 'dim'], [padL(Math.round(frac * 100) + '%', 5), 'mu']];
+};
+
 const commits = ['fix(a11y): announce the answer when it loads', 'feat: add the timetable view', 'chore(deps): bump the build toolchain', 'docs: explain the cache key', 'refactor: split the parser', 'test: cover the empty feed', 'feat(api): page the results'];
 const repos = ['acme/web-app', 'acme/api', 'acme/deploy-tools', 'labs/toy', 'acme/docs'];
 
 function vercel(): Demo {
 	const act = hist(48, () => (Math.random() < 0.5 ? 0 : Math.round(rnd(0, 6))));
 	const build = hist(60, () => rnd(150, 240));
-	type D = { ok: boolean; proj: string; t: number; age: number; sha: string; br: string; msg: string; building?: boolean };
+	// doneAt: when a build finished, to flash it for a moment.
+	type D = { ok: boolean; proj: string; t: number; age: number; sha: string; br: string; msg: string; building?: boolean; doneAt?: number };
 	const rec: D[] = Array.from({ length: 6 }, (_, i) => ({ ok: i !== 2, proj: pick(['site', 'marketing', 'docs', 'web-app']), t: rnd(18, 240), age: 600 + i * 1700, sha: Math.random().toString(16).slice(2, 9), br: pick(['main', 'feature/timetable', 'fix/a11y']), msg: pick(commits) }));
 	let n = 0;
+	const ready = new Roll(179), errors = new Roll(21), total = new Roll(200);
+	const refresh = new Refresh(5);
 	return {
 		every: 1000,
 		tick() {
@@ -256,18 +285,26 @@ function vercel(): Demo {
 			const cur = rec[0];
 			if (cur.building) {
 				cur.t += 1;
-				if (cur.t > 70) { cur.building = false; cur.ok = Math.random() > 0.15; push(build, cur.t, 60); }
-			} else if (++n % 25 === 0) {
+				if (cur.t > 70) {
+					cur.building = false;
+					cur.doneAt = Date.now();
+					cur.ok = Math.random() > 0.15;
+					push(build, cur.t, 60);
+					(cur.ok ? ready : errors).add(1);
+				}
+			} else if (++n % 12 === 0) {
+				total.add(1);
 				rec.unshift({ ok: true, building: true, proj: pick(['site', 'docs', 'web-app']), t: 0, age: 0, sha: Math.random().toString(16).slice(2, 9), br: pick(['main', 'feature/timetable']), msg: pick(commits) });
 				rec.pop();
 				act[act.length - 1]++;
 			}
 		},
 		render(cols) {
+			refresh.poll();
 			const w = cols - 2;
 			const L: Line[] = [
 				header('VERCEL DEPLOYMENTS', cols),
-				[[' 200 deploys · 6 proj  ', 'fg'], ['179 ready', 'g'], ['  21 error', 'r'], ['   0s ago', 'mu']],
+				[[` ${total.n} deploys · 6 proj  `, 'fg'], [`${ready.n} ready`, ready.moving ? 'acc' : 'g'], [`  ${errors.n} error`, 'r'], ['   ', 'mu'], refresh.seg('synced')],
 				keys('↑↓ select · →/↵ details · [s]tate failed · [/]filter · [r]efresh · [q]uit'),
 				blank(),
 				section('ACTIVITY', 'deploys/hour, last 48h'),
@@ -276,12 +313,14 @@ function vercel(): Demo {
 				section('BUILD TIME', `median ${fmtDur(build.slice().sort((a, b) => a - b)[30])}  p95 ${fmtDur(Math.max(...build) * 0.97)}`),
 				[[' ' + spark(build.slice(-w)), 'b']],
 				blank(),
-				section('RECENT', `1 of 200`),
+				section('RECENT', `1 of ${total.n}`),
 			];
 			rec.forEach((d, i) => {
-				const st: [string, Colour] = d.building ? ['◐ Building', 'y'] : d.ok ? ['● Ready   ', 'g'] : ['✖ Error   ', 'r'];
+				// Just finished: lit for a few seconds.
+				const fresh = !d.building && !!d.doneAt && Date.now() - d.doneAt < 4000;
+				const st: [string, Colour] = d.building ? [`${spin()} Building`, 'y'] : d.ok ? ['● Ready   ', fresh && blink(400) ? 'acc' : 'g'] : ['✖ Error   ', 'r'];
 				L.push([[i === 0 ? '▸' : ' ', 'acc'], [st[0] + ' ', st[1]], [pad(d.proj, 10), 'fg'], [padL(fmtDur(d.t), 6), 'mu'], [padL(ago(d.age), 5) + '  ', 'mu'], [d.sha + ' ', 'c'], [d.br, 'm']]);
-				L.push([['   ' + d.msg, 'mu']]);
+				L.push(d.building ? stepLine(['cloning', 'installing', 'building', 'uploading', 'assigning'], d.t / 70, cols, 'y') : [['   ' + d.msg, 'mu']]);
 			});
 			return L;
 		},
@@ -289,7 +328,9 @@ function vercel(): Demo {
 }
 
 function github(): Demo {
-	let awaiting = 486, ready = 180, draft = 16, merged = 17, dropped = 4;
+	const awaitingR = new Roll(486), readyR = new Roll(180), mergedR = new Roll(17), api = new Roll(4100, 1200);
+	let draft = 16, dropped = 4, todayAt = 0;
+	const refresh = new Refresh(9, () => api.set(api.target > 3000 ? api.target - Math.round(rnd(20, 90)) : 4980), 32);
 	const opened = [3, 1, 7, 2, 11, 9, 6], mergedD = [1, 4, 2, 5, 7, 3, 8];
 	// A year of contributions, one per day ending today: busy weeks and quiet ones,
 	// weekdays busier than weekends, some days with nothing.
@@ -308,18 +349,20 @@ function github(): Demo {
 	return {
 		every: 2000,
 		tick() {
-			if (Math.random() < 0.4) { awaiting += pick([-1, 1]); }
-			if (Math.random() < 0.25) { merged++; ready = Math.max(0, ready - 1); mergedD[6]++; }
-			if (Math.random() < 0.3) { opened[6]++; awaiting++; contrib[contrib.length - 1]++; }
+			if (Math.random() < 0.4) awaitingR.add(pick([-1, 1]));
+			if (Math.random() < 0.25) { mergedR.add(1); readyR.set(Math.max(0, readyR.target - 1)); mergedD[6]++; }
+			if (Math.random() < 0.3) { opened[6]++; awaitingR.add(1); contrib[contrib.length - 1]++; todayAt = Date.now(); }
 		},
 		render(cols, rows) {
+			refresh.poll();
+			const awaiting = awaitingR.n, ready = readyR.n, merged = mergedR.n;
 			const w = cols - 2;
 			const tot = awaiting + ready + draft;
 			const rate = merged / (merged + dropped);
 			const b = bar(rate, Math.max(10, w - 30));
 			const L: Line[] = [
 				header('GITHUB OPS', cols),
-				[[' 9 accounts   updated 41s ago   ', 'fg'], ['4100/5000 api', 'mu']],
+				[[' 9 accounts   ', 'fg'], refresh.seg(), [`   ${api.n}/5000 api`, api.moving ? 'y' : 'mu']],
 				section('OPEN PR STATE', `${tot} PRs · 220 issues open`),
 				[[' ', 'fg'], ...stack([[awaiting, 'y'], [ready, 'g'], [draft, 'mu']], w)],
 				[[' ▇ ', 'y'], [`awaiting review ${awaiting}  `, 'fg'], ['▇ ', 'g'], [`ready to merge ${ready}  `, 'fg'], ['▇ ', 'mu'], [`draft ${draft}`, 'fg']],
@@ -361,7 +404,9 @@ function github(): Demo {
 				for (let k = 0; k < weeks; k++) {
 					const i = start + k * 7 + r;
 					// Days after today, in this week's column, stay blank.
-					row.push(i >= DAYS ? ['  ', 'fg'] : ['■ ', level(contrib[i] ?? 0, top)]);
+					// Today's square flashes when a new contribution lands.
+					const flash = i === DAYS - 1 && Date.now() - todayAt < 1500 && blink(300);
+					row.push(i >= DAYS ? ['  ', 'fg'] : [flash ? '□ ' : '■ ', flash ? 'acc' : level(contrib[i] ?? 0, top)]);
 				}
 				L.push(row);
 			});
@@ -386,25 +431,27 @@ function githubActions(): Demo {
 		{ st: 'success', t: 8, age: 1020, repo: 'labs/toy', wf: 'CI', msg: 'fix: the thing' },
 		{ st: 'success', t: 241, age: 2100, repo: 'acme/docs', wf: 'Deploy', msg: 'docs: explain the cache key' },
 	];
+	const refresh = new Refresh(10, undefined, 6);
 	return {
 		every: 1000,
 		tick() {
 			runs.forEach((r) => { r.age++; if (r.st === 'running') r.t++; });
 			const r = runs[0];
 			if (r.st === 'running' && r.t > 110) r.st = Math.random() < 0.8 ? 'success' : 'failure';
-			else if (r.st !== 'running' && Math.random() < 0.06) {
+			else if (r.st !== 'running' && Math.random() < 0.15) {
 				runs.unshift({ st: 'running', t: 0, age: 0, repo: pick(repos), wf: pick(['CI', 'Deploy', 'Lint']), msg: pick(commits) });
 				runs.pop();
 				act[act.length - 1] += 1;
 			}
 		},
 		render(cols) {
+			refresh.poll();
 			const w = cols - 2;
 			const f = runs.filter((r) => r.st === 'failure').length;
-			const icon: Record<R['st'], [string, Colour]> = { success: ['● success', 'g'], failure: ['✖ failure', 'r'], running: ['◐ running', 'y'], queued: ['○ queued ', 'mu'] };
+			const icon: Record<R['st'], [string, Colour]> = { success: ['● success', 'g'], failure: ['✖ failure', 'r'], running: [`${spin()} running`, 'y'], queued: ['○ queued ', 'mu'] };
 			const L: Line[] = [
 				header('GITHUB ACTIONS', cols),
-				[[' 10 accounts   updated 20s ago   ', 'fg'], ['4840/5000 api', 'mu']],
+				[[' 10 accounts   ', 'fg'], refresh.seg(), ['   4840/5000 api', 'mu']],
 				[[' 48 runs · 12 repos  ', 'fg'], ['41 success', 'g'], [`  ${f + 3} failed`, 'r'], ['  1 running', 'y']],
 				blank(),
 				section('ACTIVITY', 'runs/hour, last 48h'),
@@ -420,7 +467,7 @@ function githubActions(): Demo {
 			];
 			runs.forEach((r, i) => {
 				L.push([[i === 0 ? '▸' : ' ', 'acc'], [icon[r.st][0] + ' ', icon[r.st][1]], [padL(fmtDur(r.t), 6), 'mu'], [padL(ago(r.age), 5) + '  ', 'mu'], [r.repo, 'c']]);
-				L.push([[`   ${r.wf} · ${r.msg}`, 'mu']]);
+				L.push(r.st === 'running' ? stepLine(['checkout', 'setup node', 'install', 'lint', 'test', 'build'], r.t / 110, cols, 'y') : [[`   ${r.wf} · ${r.msg}`, 'mu']]);
 			});
 			L.push(keys('↑↓ select  →/↵ details  [s]tate failed  [/]filter  [q]uit'));
 			return L;
@@ -438,20 +485,23 @@ function githubPrs(): Demo {
 		{ n: 488, repo: 'docs', title: 'docs: the stack map, explained', review: 'needs review', checks: 'running', idle: 120 },
 	];
 	const opened = hist(30, () => Math.round(rnd(0, 10)));
+	const refresh = new Refresh(12, undefined, 4);
 	return {
 		every: 1500,
 		tick() {
 			prs.forEach((p) => (p.idle += 1.5));
+			// Running checks finish after a few seconds; now and then a push starts new ones.
+			prs.forEach((p) => { if (p.checks === 'running' && Math.random() < 0.25) p.checks = Math.random() < 0.8 ? 'pass' : 'FAIL'; });
 			const p = pick(prs);
-			if (p.checks === 'running' && Math.random() < 0.3) p.checks = Math.random() < 0.8 ? 'pass' : 'FAIL';
-			else if (Math.random() < 0.08) { p.idle = 0; p.checks = 'running'; }
+			if (p.checks !== 'running' && Math.random() < 0.15) { p.idle = 0; p.checks = 'running'; }
 		},
 		render(cols) {
+			refresh.poll();
 			const w = cols - 2;
 			const appr = prs.filter((p) => p.review === 'approved').length, ch = prs.filter((p) => p.review === 'changes').length;
 			const L: Line[] = [
 				header('GITHUB PRS', cols),
-				[[' 4 accounts   updated 12s ago   ', 'fg'], ['4567/5000 api', 'mu']],
+				[[' 4 accounts   ', 'fg'], refresh.seg(), ['   4567/5000 api', 'mu']],
 				section('STATE', '34 open · 10 draft · 9 conflicting · 1 ready to merge'),
 				[[' ', 'fg'], ...stack([[appr, 'g'], [ch, 'r'], [27, 'y'], [3, 'mu']], w)],
 				[[' ▇ ', 'g'], [`approved ${appr}  `, 'fg'], ['▇ ', 'r'], [`changes ${ch}  `, 'fg'], ['▇ ', 'y'], ['needs review 27', 'fg']],
@@ -462,7 +512,7 @@ function githubPrs(): Demo {
 			L.push([[' ' + pad('30d ago', Math.min(w, 30) - 5) + 'today', 'mu']], blank(), section('OPEN PRs', 'by updated ↓'));
 			L.push([[' ' + pad('PR', 6) + pad('REPO', 13) + pad('TITLE', Math.max(8, cols - 47)) + padL('REVIEW', 13) + padL('CHECKS', 8) + padL('IDLE', 6), 'c']]);
 			[...prs].sort((a, b) => a.idle - b.idle).forEach((p, i) =>
-				L.push([[i === 0 ? '▸' : ' ', 'acc'], [pad('#' + p.n, 6), 'fg'], [pad(p.repo, 13), 'c'], [pad(p.title, Math.max(8, cols - 47)), 'fg'], [padL(p.review, 13), p.review === 'approved' ? 'g' : p.review === 'changes' ? 'r' : 'y'], [padL(p.checks, 8), p.checks === 'pass' ? 'g' : p.checks === 'FAIL' ? 'r' : 'y'], [padL(ago(p.idle), 6), 'mu']]));
+				L.push([[i === 0 ? '▸' : ' ', 'acc'], [pad('#' + p.n, 6), 'fg'], [pad(p.repo, 13), 'c'], [pad(p.title, Math.max(8, cols - 47)), 'fg'], [padL(p.review, 13), p.review === 'approved' ? 'g' : p.review === 'changes' ? 'r' : 'y'], [padL(p.checks === 'running' ? `${spin()} run` : p.checks, 8), p.checks === 'pass' ? 'g' : p.checks === 'FAIL' ? 'r' : 'y'], [padL(ago(p.idle), 6), 'mu']]));
 			L.push(blank(), keys('↑↓ select  [↵] open  [/]filter  [s]ort  [c]opy url  [q]uit'));
 			return L;
 		},
@@ -477,22 +527,29 @@ function linear(): Demo {
 		{ name: 'OPS Cycle 111', done: 0, pts: 8, left: 2, added: 0 },
 	];
 	const created = [4, 5, 9, 3, 8, 6, 2, 2, 12, 0, 1, 4, 4, 1], completed = [0, 0, 0, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-	let triage = 704, backlog = 314, todo = 155, prog = 48;
+	const triageR = new Roll(704), backlogR = new Roll(314), todoR = new Roll(155), progR = new Roll(48);
+	const doneR = cycles.map((c) => new Roll(c.done, 900));
+	const refresh = new Refresh(20, undefined, 14);
 	return {
 		every: 2000,
 		tick() {
-			const c = pick(cycles);
-			if (c.done < c.pts && Math.random() < 0.5) c.done++;
-			if (Math.random() < 0.3) { triage++; created[13]++; }
-			if (Math.random() < 0.3) { prog = Math.max(0, prog - 1); completed[13]++; }
-			if (Math.random() < 0.2) { triage--; todo++; }
+			const k = Math.floor(Math.random() * cycles.length), c = cycles[k];
+			// A finished cycle rolls over to the next one.
+			if (c.done >= c.pts) { c.done = Math.round(c.pts * rnd(0.05, 0.3)); doneR[k].set(c.done); }
+			else if (Math.random() < 0.6) { c.done += Math.ceil(c.pts / 40); c.done = Math.min(c.done, c.pts); doneR[k].set(c.done); }
+			if (Math.random() < 0.4) { triageR.add(1); created[13]++; }
+			if (Math.random() < 0.3) { progR.set(Math.max(0, progR.target - 1)); completed[13]++; }
+			if (Math.random() < 0.3) { triageR.add(-1); todoR.add(1); }
+			if (Math.random() < 0.2) { todoR.add(-1); progR.add(1); }
 		},
 		render(cols) {
+			refresh.poll();
+			const triage = triageR.n, backlog = backlogR.n, todo = todoR.n, prog = progR.n;
 			const w = cols - 2;
 			const bw = Math.max(8, cols - 34);
 			const L: Line[] = [
 				header('LINEAR OPS', cols),
-				[[' 14 teams   updated 1m ago   ', 'fg'], ['2490 req left/hr', 'mu']],
+				[[' 14 teams   ', 'fg'], refresh.seg(), ['   2490 req left/hr', 'mu']],
 				section('HOW LONG', 'all teams · median of 88 completed in 14d'),
 				[['  lead ', 'mu'], ['10.9h', 'fg'], ['   cycle ', 'mu'], ['3.7h', 'fg'], ['   oldest open ', 'mu'], ['STU-97 2.8y', 'r']],
 				blank(),
@@ -503,8 +560,9 @@ function linear(): Demo {
 				section('ACTIVE CYCLES', `${cycles.length} running`),
 			];
 			cycles.forEach((c, i) => {
-				const b = bar(c.done / c.pts, bw);
-				L.push([[i === 0 ? '▸' : ' ', 'acc'], [pad(c.name, 14), 'fg'], [b.on, 'acc'], [b.off, 'dim'], [padL(Math.round((c.done / c.pts) * 100) + '%', 5), 'fg'], [`  ${c.left}d left`, 'mu'], [c.added ? `  +${c.added}` : '', 'y']]);
+				const done = doneR[i].now();
+				const b = bar(done / c.pts, bw);
+				L.push([[i === 0 ? '▸' : ' ', 'acc'], [pad(c.name, 14), 'fg'], [b.on, doneR[i].moving ? 'g' : 'acc'], [b.off, 'dim'], [padL(Math.round((done / c.pts) * 100) + '%', 5), doneR[i].moving ? 'g' : 'fg'], [`  ${c.left}d left`, 'mu'], [c.added ? `  +${c.added}` : '', 'y']]);
 			});
 			L.push(blank(), section('ISSUE FLOW', '14d · ▲ created · ▼ completed'));
 			const cw = Math.max(1, Math.floor(w / 14) - 1);
@@ -565,35 +623,57 @@ function herdr(): Demo {
 
 function luvus(): Demo {
 	let f = 0;
+	type A = { who: string; st: 'BLOCKED' | 'DONE' | 'working' | 'idle'; since: number; ws: string; br: string; via: string };
+	const now = Date.now();
+	const agents: A[] = [
+		{ who: 'claude', st: 'BLOCKED', since: now - 240e3, ws: 'some-cli', br: 'feature/port-the-parser', via: 'integration_report' },
+		{ who: 'codex', st: 'DONE', since: now - 960e3, ws: 'site', br: 'main', via: 'manifest_rule' },
+		{ who: 'claude', st: 'working', since: now - 120e3, ws: 'infra', br: 'feature/schedule-module', via: 'screen_text' },
+		{ who: 'gemini', st: 'idle', since: now - 960e3, ws: 'docs', br: 'main', via: 'screen_text' },
+	];
+	const tasks = [
+		{ id: 't-014', st: 'claimed', what: 'Port the parser to the new envelope' },
+		{ id: 't-015', st: 'ready', what: 'Rewrite the lease conflict message' },
+	];
+	// Every few seconds the work moves on: the working agent finishes, the idle one
+	// picks up the ready task, the done one goes idle. The blocked one waits for you.
+	const next: Record<A['st'], A['st']> = { working: 'DONE', idle: 'working', DONE: 'idle', BLOCKED: 'BLOCKED' };
+	const ORDER = ['BLOCKED', 'DONE', 'working', 'idle'];
 	return {
 		every: 250,
-		tick: () => void f++,
+		tick() {
+			f++;
+			if (f % 28 === 0) {
+				agents.forEach((a) => { if (a.st !== 'BLOCKED') { a.st = next[a.st]; a.since = Date.now(); } });
+				tasks[1].st = tasks[1].st === 'ready' ? 'claimed' : 'ready';
+			}
+		},
 		render(cols) {
+			const count = (st: A['st']) => agents.filter((a) => a.st === st).length;
+			const icon = (st: A['st']): [string, Colour] => (st === 'working' ? [spin(), 'y'] : st === 'DONE' ? ['✓', 'g'] : st === 'BLOCKED' ? ['⚠', 'r'] : ['·', 'mu']);
 			const L: Line[] = [
 				header('LUVUS PANES', cols),
-				[[' 4 agents · 9 panes   ', 'fg'], ['1 blocked', 'r'], ['   1 done', 'g'], ['   1 working', 'y'], ['   1 idle', 'mu']],
+				[[' 4 agents · 9 panes   ', 'fg'], [`${count('BLOCKED')} blocked`, 'r'], [`   ${count('DONE')} done`, 'g'], [`   ${count('working')} working`, 'y'], [`   ${count('idle')} idle`, 'mu']],
 				[[' session default · uhp 1.0 · 3 workspaces · seq ', 'mu'], [String(4186 + f), 'fg']],
-				[[' ▸ 2 agents waiting for you', 'acc']],
+				[[` ▸ ${count('BLOCKED') + count('DONE')} agents waiting for you`, blink(1200) ? 'acc' : 'fg']],
 				blank(),
 				section('AGENTS', '4'),
 				[[' ' + pad('AGENT', 10) + pad('STATE', 9) + padL('FOR', 5) + '  ' + pad('WORKSPACE', 10) + 'BRANCH', 'c']],
-				[['▸', 'acc'], ['⚠ ', 'r'], [pad('claude', 8), 'fg'], [pad('BLOCKED', 9), 'r'], [padL('4m', 5) + '  ', 'mu'], [pad('some-cli', 10), 'c'], ['feature/port-the-parser', 'm']],
-				[['   state via integration_report', 'mu']],
-				[[' ', 'acc'], ['✓ ', 'g'], [pad('codex', 8), 'fg'], [pad('DONE', 9), 'g'], [padL('16m', 5) + '  ', 'mu'], [pad('site', 10), 'c'], ['main', 'm']],
-				[['   state via manifest_rule', 'mu']],
-				[[' ', 'acc'], [spinner[f % 10] + ' ', 'y'], [pad('claude', 8), 'fg'], [pad('working', 9), 'y'], [padL('2m', 5) + '  ', 'mu'], [pad('infra', 10), 'c'], ['feature/schedule-module', 'm']],
-				[['   state via screen_text', 'mu']],
-				[[' ', 'acc'], ['· ', 'mu'], [pad('gemini', 8), 'fg'], [pad('idle', 9), 'mu'], [padL('16m', 5) + '  ', 'mu'], [pad('docs', 10), 'c'], ['main', 'm']],
-				blank(),
-				section('TASKS', '2'),
-				[[' ◆ ', 'acc'], [pad('t-014', 8), 'fg'], [pad('claimed', 10), 'y'], ['Port the parser to the new envelope', 'fg']],
-				[[' ◆ ', 'acc'], [pad('t-015', 8), 'fg'], [pad('ready', 10), 'g'], ['Rewrite the lease conflict message', 'fg']],
+			];
+			[...agents].sort((a, b) => ORDER.indexOf(a.st) - ORDER.indexOf(b.st)).forEach((a, i) => {
+				const [ic, c] = icon(a.st);
+				L.push([[i === 0 ? '▸' : ' ', 'acc'], [ic + ' ', c], [pad(a.who, 8), 'fg'], [pad(a.st, 9), c], [padL(ago((Date.now() - a.since) / 1000), 5) + '  ', 'mu'], [pad(a.ws, 10), 'c'], [a.br, 'm']]);
+				L.push([[`   state via ${a.via}`, 'mu']]);
+			});
+			L.push(blank(), section('TASKS', String(tasks.length)));
+			tasks.forEach((t) => L.push([[' ◆ ', 'acc'], [pad(t.id, 8), 'fg'], [pad(t.st, 10), t.st === 'claimed' ? 'y' : 'g'], [t.what, 'fg']]));
+			L.push(
 				blank(),
 				section('LEASES', '1'),
 				[[' ⛒ ', 'o'], [pad('t-014', 8), 'fg'], ['src/parser/**  ', 'c'], ['(claude)', 'mu']],
 				blank(),
 				keys('↑↓ select  ↵ switch to this pane  [t]asks  [r]efresh  [q]uit'),
-			];
+			);
 			return L;
 		},
 	};
@@ -607,20 +687,31 @@ function agentUsage(): Demo {
 		{ name: 'CURSOR', c: 'g', rows: [{ label: 'included', used: 0.15, pace: 0.5, delta: 34, reset: '15d 21h' }, { label: 'auto', used: 0.16, pace: 0.5, delta: 33, reset: '15d 21h' }] },
 		{ name: 'GROK', c: 'b', rows: [{ label: 'credits', used: 0.28, pace: 0.24, delta: -9, reset: '5d 16h' }] },
 	];
-	let read = 13;
+	const rolls = new Map(groups.flatMap((g) => g.rows.map((r) => [r, new Roll(r.used, 1000)] as const)));
+	// Each read finds a few agents have used a little more; the session window
+	// empties again when it fills.
+	const refresh = new Refresh(6, () => {
+		groups.forEach((g) => g.rows.forEach((r) => {
+			if (Math.random() < 0.5) return;
+			r.used = r.used > 0.95 ? 0.02 : Math.min(1, r.used + rnd(0.005, 0.03));
+			r.delta = Math.round((r.pace - r.used) * 100);
+			rolls.get(r)?.set(r.used);
+		}));
+	}, 4);
 	return {
 		every: 1000,
 		tick() {
-			read = (read + 1) % 60;
 			const r = groups[0].rows[0];
-			r.used = Math.min(1, r.used + rnd(0, 0.004));
+			r.used = r.used > 0.95 ? 0.02 : Math.min(1, r.used + rnd(0, 0.006));
 			r.delta = Math.round((r.pace - r.used) * 100);
+			rolls.get(r)?.set(r.used);
 		},
 		render(cols) {
+			refresh.poll();
 			const bw = clamp(cols - 34, 10, 30);
 			const L: Line[] = [
 				header('AGENT USAGE', cols),
-				[[` local state · live quota · read ${read}s ago`, 'mu']],
+				[[' local state · live quota · ', 'mu'], refresh.seg('read')],
 				[['[+] ', 'acc'], ['CLAUDE · CODEX · COPILOT · CURSOR · GROK', 'b']],
 				blank(),
 				section('QUOTAS', '9 limits across 5 agents · ranked by usage'),
@@ -628,12 +719,14 @@ function agentUsage(): Demo {
 			groups.forEach((g) => {
 				L.push([[' ' + g.name, g.c]]);
 				g.rows.forEach((r) => {
-					const b = bar(r.used, bw);
+					const roll = rolls.get(r);
+					const used = roll ? roll.now() : r.used;
+					const b = bar(used, bw);
 					const mark = clamp(Math.round(r.pace * bw), 0, bw - 1);
 					const offArr = [...b.off];
 					const onLen = [...b.on].length;
 					if (mark >= onLen && mark - onLen < offArr.length) offArr[mark - onLen] = '│';
-					L.push([['  ' + pad(r.label, 13), 'fg'], [b.on, g.c === 'fg' ? 'mu' : g.c], [offArr.join(''), 'dim'], [padL((r.used * 100).toFixed(r.used < 0.1 ? 1 : 0) + '%', 7), g.c === 'fg' ? 'fg' : g.c], [padL((r.delta > 0 ? '+' : '') + r.delta + '%', 6), r.delta >= 0 ? 'g' : 'y'], ['  ' + r.reset, 'mu']]);
+					L.push([['  ' + pad(r.label, 13), 'fg'], [b.on, g.c === 'fg' ? 'mu' : g.c], [offArr.join(''), 'dim'], [padL((used * 100).toFixed(used < 0.1 ? 1 : 0) + '%', 7), roll?.moving ? 'acc' : g.c === 'fg' ? 'fg' : g.c], [padL((r.delta > 0 ? '+' : '') + r.delta + '%', 6), r.delta >= 0 ? 'g' : 'y'], ['  ' + r.reset, 'mu']]);
 				});
 				L.push(blank());
 			});
@@ -647,7 +740,7 @@ function agentUsage(): Demo {
 
 const DIGITS: Record<string, string[]> = {
 	'0': ['█▀█', '█ █', '▀▀▀'], '1': [' ▀█', '  █', '  ▀'], '2': ['▀▀█', '█▀▀', '▀▀▀'], '3': ['▀▀█', ' ▀█', '▀▀▀'], '4': ['█ █', '▀▀█', '  ▀'],
-	'5': ['█▀▀', '▀▀█', '▀▀▀'], '6': ['█▀▀', '█▀█', '▀▀▀'], '7': ['▀▀█', '  █', '  ▀'], '8': ['█▀█', '█▀█', '▀▀▀'], '9': ['█▀█', '▀▀█', '▀▀▀'], ':': [' ', '▪', ' '],
+	'5': ['█▀▀', '▀▀█', '▀▀▀'], '6': ['█▀▀', '█▀█', '▀▀▀'], '7': ['▀▀█', '  █', '  ▀'], '8': ['█▀█', '█▀█', '▀▀▀'], '9': ['█▀█', '▀▀█', '▀▀▀'], ':': [' ', '▪', ' '], ' ': [' ', ' ', ' '],
 };
 const big = (s: string) => [0, 1, 2].map((r) => [...s].map((ch) => DIGITS[ch][r]).join(' '));
 
@@ -681,7 +774,8 @@ function clocks(): Demo {
 			const bw = cols - 2;
 			const local = inZone(here, now);
 			const L: Line[] = [header('CLOCKS', cols), section('SERVER TIME', `· ${names[here] ?? cityOf(here)}`)];
-			big(`${String(local.h).padStart(2, '0')}:${local.m}:${local.s}`).forEach((r) => L.push([[' ' + r, 'g']]));
+			const colon = blink(1000) ? ':' : ' ';
+			big(`${String(local.h).padStart(2, '0')}${colon}${local.m}${colon}${local.s}`).forEach((r) => L.push([[' ' + r, 'g']]));
 			const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 			L.push([[' ' + local.date + '  ', 'fg'], [days[now.getDay()] + '  ', 'c'], [local.off, 'mu']], blank(), section('COUNTDOWN'));
 			const secOfDay = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
@@ -711,16 +805,25 @@ function clocks(): Demo {
 
 function months(): Demo {
 	return {
-		every: 60000,
+		every: 1000,
 		tick() {},
 		render(cols) {
 			const now = new Date();
 			const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 			const off = -now.getTimezoneOffset() / 60;
+			// How far through the day and the year we are, by the second.
+			const y0 = new Date(now.getFullYear(), 0, 1).getTime(), y1 = new Date(now.getFullYear() + 1, 0, 1).getTime();
+			// From calendar dates, so a daylight-saving shift can't move the day number.
+			const dayOfYear = Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(now.getFullYear(), 0, 1)) / 864e5) + 1;
+			const dayFrac = (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / 86400;
+			const bw = Math.max(8, cols - 24);
+			const dayBar = bar(dayFrac, bw), yearBar = bar((now.getTime() - y0) / (y1 - y0), bw);
 			const L: Line[] = [
 				header('MONTHS', cols),
-				[[` ${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${days[now.getDay()]} · reckoned on this machine (UTC${off >= 0 ? '+' : ''}${off})`, 'fg']],
+				[[` ${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${days[now.getDay()]} `, 'fg'], [clock(now), 'acc'], [` · this machine (UTC${off >= 0 ? '+' : ''}${off})`, 'mu']],
 				[[' weeks start Monday · wk is the ISO 8601 week', 'mu']],
+				[[' ' + pad('today', 8), 'mu'], [dayBar.on, 'c'], [dayBar.off, 'dim'], [padL((dayFrac * 100).toFixed(1) + '%', 7), 'fg']],
+				[[' ' + pad(`day ${dayOfYear}`, 8), 'mu'], [yearBar.on, 'm'], [yearBar.off, 'dim'], [padL((((now.getTime() - y0) / (y1 - y0)) * 100).toFixed(1) + '%', 7), 'fg']],
 				blank(),
 			];
 			const isoWeek = (d: Date) => {
@@ -739,7 +842,7 @@ function months(): Demo {
 					for (let d = 0; d < 7; d++) {
 						const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + w * 7 + d);
 						const today = day.getMonth() === m && day.toDateString() === now.toDateString();
-						line.push([' ', 'fg'], [padL(day.getDate(), 2), today ? 'inv' : day.getMonth() === m ? (d >= 5 ? 'y' : 'fg') : 'dim']);
+						line.push([' ', 'fg'], [padL(day.getDate(), 2), today ? (blink(1600) ? 'inv' : 'acc') : day.getMonth() === m ? (d >= 5 ? 'y' : 'fg') : 'dim']);
 					}
 					out.push(line);
 				}
@@ -768,26 +871,44 @@ function trends(): Demo {
 		{ q: 'widgetcon keynote', traffic: '200+', started: 135, seen: 6, news: 'Example News' },
 		{ q: 'meteor shower tonight', traffic: '200+', started: 48, seen: 2, news: 'Sky Weekly' },
 	];
-	let fetched = 2 * 60, sel = 0;
+	// Made-up terms that rise into the feed, one every other fetch; the oldest falls out.
+	const rising = [
+		{ q: 'gloop marathon', traffic: '1000+', news: 'Example Times' },
+		{ q: 'snorkel ban lifted', traffic: '500+', news: 'Sample Gazette' },
+		{ q: 'blorp release date', traffic: '2000+', news: 'Example News' },
+		{ q: 'harbour fireworks', traffic: '200+', news: 'Sky Weekly' },
+	];
+	let sel = 0, n = 0, newAt = 0;
+	let left = { q: 'old example term', traffic: '1000+' };
+	const refresh = new Refresh(15, () => {
+		terms.forEach((t) => { t.seen++; t.started += 5; });
+		if (++n % 2) return;
+		const r = rising[(n / 2) % rising.length];
+		const gone = terms.pop();
+		if (gone) left = gone;
+		terms.unshift({ ...r, started: 0, seen: 0 });
+		sel = 0;
+		newAt = Date.now();
+	}, 9);
 	return {
 		every: 1000,
 		tick() {
-			fetched++;
-			if (fetched % 4 === 0) sel = (sel + 1) % terms.length;
-			if (fetched > 300) { fetched = 0; terms.forEach((t) => { t.seen++; t.started += 5; }); }
+			if (Date.now() - newAt > 3000 && Math.floor(Date.now() / 1000) % 3 === 0) sel = (sel + 1) % terms.length;
 		},
 		render(cols) {
+			refresh.poll();
+			const fresh = Date.now() - newAt < 3000;
 			const L: Line[] = [
 				header('TRENDS AU', cols),
 				[[' [AU]', 'inv'], ['·1  US ·  GB ·', 'mu']],
-				[[` fetched ${ago(fetched)} ago · Google's Trending Now feed, every 5 min`, 'mu']],
+				[[' ', 'mu'], refresh.seg('fetched'), [` · Google's Trending Now feed`, 'mu']],
 				blank(),
 				[[' TRENDING NOW', 'acc']],
-				[[` "approx traffic" is Google's bucket, not a count · ${terms.length} of ${terms.length} · 1 new`, 'mu']],
+				[[` "approx traffic" is Google's bucket, not a count · ${terms.length} of ${terms.length} · ${terms.filter((t) => !t.seen).length} new`, 'mu']],
 				[['  ' + pad('SEARCH', 22) + pad('TRAFFIC', 8) + pad('STARTED', 8) + pad('SEEN', 5) + 'NEWS', 'c']],
 			];
-			terms.forEach((t, i) => L.push([[i === sel ? '▸ ' : '  ', 'acc'], [pad(t.q, 22), i === sel ? 'acc' : 'fg'], [pad(t.traffic, 8), 'y'], [pad(ago(t.started * 60), 8), 'mu'], [pad(t.seen ? t.seen + '×' : 'new', 5), t.seen ? 'mu' : 'g'], [t.news, 'mu']]));
-			L.push(blank(), [[' LEFT THE FEED', 'acc']], [[' this widget\'s own observation · kept an hour', 'mu']], [['  old example term  ', 'fg'], ['was 1000+ · in 9 fetches over 40m · gone 7m ago', 'mu']]);
+			terms.forEach((t, i) => L.push([[i === sel ? '▸ ' : '  ', 'acc'], [pad(t.q, 22), i === 0 && fresh && blink(400) ? 'g' : i === sel ? 'acc' : 'fg'], [pad(t.traffic, 8), 'y'], [pad(ago(t.started * 60), 8), 'mu'], [pad(t.seen ? t.seen + '×' : 'new', 5), t.seen ? 'mu' : 'g'], [t.news, 'mu']]));
+			L.push(blank(), [[' LEFT THE FEED', 'acc']], [[' this widget\'s own observation · kept an hour', 'mu']], [[`  ${left.q}  `, 'fg'], [`was ${left.traffic} · gone ${ago(refresh.ago + 15 * (n % 2))} ago`, 'mu']]);
 			L.push(blank(), keys('↑↓ select  tab section  ←→ region  [↵] news  [/] filter  [q]uit'));
 			return L;
 		},

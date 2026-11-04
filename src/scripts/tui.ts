@@ -132,3 +132,104 @@ export const toHtml = (lines: Line[], cols: number, rows: number) =>
 			return html;
 		})
 		.join('\n');
+
+/* ── motion ─────────────────────────────────────────────────────────────
+ * Time-based helpers, so a demo can animate between its data ticks: the page
+ * redraws every visible demo a few times a second (run-demos.ts, FRAME_MS).
+ */
+
+/** Visible demos redraw this often between data ticks, so spinners spin and numbers roll. */
+export const FRAME_MS = 120;
+
+const SPIN = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏';
+/** A braille spinner frame from the clock; `offset` staggers several spinners. */
+export const spin = (offset = 0) => SPIN[(Math.floor(Date.now() / 90) + offset) % SPIN.length];
+/** True for the first half of every `ms`: a blink. */
+export const blink = (ms = 1000) => Date.now() % ms < ms / 2;
+/** A bouncing block for indeterminate progress, `width` cells wide. */
+export const scan = (width: number, ms = 1400) => {
+	const t = (Date.now() % ms) / ms;
+	const pos = Math.round((t < 0.5 ? t * 2 : 2 - t * 2) * Math.max(0, width - 3));
+	return { before: '░'.repeat(pos), lit: '▓▓▓', after: '░'.repeat(Math.max(0, width - pos - 3)) };
+};
+
+const ease = (t: number) => 1 - Math.pow(1 - t, 3);
+
+/** A number that rolls to each new value over `ms`, like an odometer. */
+export class Roll {
+	private from: number;
+	private to: number;
+	private at = 0;
+	constructor(v: number, private ms = 700) {
+		this.from = this.to = v;
+	}
+	set(v: number) {
+		if (v === this.to) return;
+		this.from = this.now();
+		this.to = v;
+		this.at = Date.now();
+	}
+	add(d: number) {
+		this.set(this.to + d);
+	}
+	get target() {
+		return this.to;
+	}
+	/** True while it is still rolling, for a highlight. */
+	get moving() {
+		return Date.now() - this.at < this.ms;
+	}
+	now() {
+		const t = Math.min(1, (Date.now() - this.at) / this.ms);
+		return this.from + (this.to - this.from) * ease(t);
+	}
+	/** The rolled value, rounded. */
+	get n() {
+		return Math.round(this.now());
+	}
+}
+
+/**
+ * A widget's own refresh cycle: "updated 12s ago" counts up in real time, then
+ * a spinner shows for a moment while it "fetches", then it starts again.
+ * `onFetch` runs when each fetch lands, to change the data.
+ */
+export class Refresh {
+	private last: number;
+	private busyFrom = 0;
+	constructor(
+		private everyS: number,
+		private onFetch: () => void = () => {},
+		startAgo = 0,
+		private busyMs = 1100,
+	) {
+		this.last = Date.now() - startAgo * 1000;
+	}
+	/** Call from tick() or render(); runs the fetch when it is due. */
+	poll() {
+		const now = Date.now();
+		if (this.busyFrom) {
+			if (now - this.busyFrom >= this.busyMs) {
+				this.busyFrom = 0;
+				this.last = now;
+				this.onFetch();
+			}
+		} else if (now - this.last >= this.everyS * 1000) this.busyFrom = now;
+	}
+	get busy() {
+		return this.busyFrom > 0;
+	}
+	/** True for a moment after a fetch lands, to light what changed. */
+	get fresh() {
+		return !this.busyFrom && Date.now() - this.last < 900;
+	}
+	get ago() {
+		return Math.floor((Date.now() - this.last) / 1000);
+	}
+	/** "updated 12s ago", or a spinner while fetching. */
+	seg(word = 'updated'): Seg {
+		if (this.busy) return [`${spin()} refreshing…`, 'acc'];
+		const s = this.ago;
+		return [`${word} ${s < 60 ? s + 's' : Math.floor(s / 60) + 'm'} ago`, this.fresh ? 'g' : 'mu'];
+	}
+}

@@ -7,7 +7,7 @@
 import { WTerm } from '@wterm/dom';
 import '@wterm/dom/css';
 import { demos } from './demos';
-import type { Line } from './tui';
+import { FRAME_MS, type Line } from './tui';
 import { groups, widgets, docsUrl } from '../data/widgets';
 import { themeGroups, themes } from '../data/themes';
 
@@ -156,12 +156,18 @@ export async function startShell() {
 		};
 		// Animate only while the shell is on screen, the tab is visible and motion is allowed,
 		// like the panes in run-demos.ts.
+		// Data ticks at the demo's own pace; frames in between keep spinners and
+		// rolling numbers moving.
 		let timer = 0;
+		let frames = 0;
 		let visible = true;
 		const sync = () => {
 			clearInterval(timer);
-			timer = 0;
-			if (visible && !document.hidden && !reduced.matches) timer = window.setInterval(() => (demo.tick(), draw()), demo.every);
+			clearInterval(frames);
+			timer = frames = 0;
+			if (!visible || document.hidden || reduced.matches) return;
+			timer = window.setInterval(() => (demo.tick(), draw()), demo.every);
+			if (demo.every > FRAME_MS) frames = window.setInterval(draw, FRAME_MS);
 		};
 		const seen = new IntersectionObserver((entries) => {
 			visible = entries[entries.length - 1].isIntersecting;
@@ -183,6 +189,7 @@ export async function startShell() {
 			casual,
 			stop() {
 				clearInterval(timer);
+				clearInterval(frames);
 				seen.disconnect();
 				document.removeEventListener('visibilitychange', sync);
 				reduced.removeEventListener('change', sync);
