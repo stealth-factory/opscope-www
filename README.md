@@ -24,6 +24,15 @@ Needs Node 22 or newer.
 | `npm run dev`     | Start the dev server at `localhost:4321`      |
 | `npm run build`   | Build the static site into `./dist/`          |
 | `npm run preview` | Serve the built site locally before deploying |
+| `npm run og`      | Redraw `public/og.png` and the touch icon     |
+
+### Social card
+
+`public/og.png` (1200×630) is a screenshot of `src/pages/[og].astro`, a page
+that only exists in dev (it builds to nothing). It reuses the real widget
+demos, with the clock frozen so each run comes out the same. Edit the page,
+then run `npm run og`. That needs a Chromium for Playwright
+(`npx playwright install chromium`).
 
 ## Layout
 

@@ -1,0 +1,166 @@
+---
+/**
+ * The social card (public/og.png), drawn from the real widget demos.
+ * Dev only: getStaticPaths gives no pages in a build, so /og never ships.
+ * Regenerate with `npm run og` (see scripts/og.mjs).
+ */
+import '../styles/global.css';
+import { themeCss } from '../data/themes';
+import { widgets } from '../data/widgets';
+
+export function getStaticPaths() {
+	return import.meta.env.DEV ? [{ params: { og: 'og' } }] : [];
+}
+
+const panes = ['github-actions', 'clocks', 'agent-usage'].map((name) => widgets.find((w) => w.name === name)!);
+---
+
+<!doctype html>
+<html lang="en-GB">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="robots" content="noindex" />
+		<title>opscope social card</title>
+		<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" />
+		<style is:inline set:html={themeCss}></style>
+	</head>
+	<body>
+		<div class="card">
+			<section class="pitch">
+				<p class="brand"><span class="mark" aria-hidden="true">&gt;_</span> opscope</p>
+				<h1>Dashboard widgets for your <span class="accent">terminal</span>.</h1>
+				<p class="sub">Live stats from GitHub, Vercel, your network and your coding agents, in sci-fi hacker panels.</p>
+				<p class="cmd"><span class="accent">$</span> npx opscope</p>
+				<p class="meta">17 widgets · Linux · macOS · open source</p>
+			</section>
+			<section class="grid">
+				{
+					panes.map((w, i) => (
+						<div class:list={['pane', { wide: i === 0 }]}>
+							<div class="pane-bar">
+								<span class="pane-title">{i + 1} · {w.name}</span>
+								<span class="pane-cmd">npx opscope {w.name}</span>
+							</div>
+							<div class="pane-body">
+								<pre class="demo" data-demo={w.name} />
+							</div>
+						</div>
+					))
+				}
+			</section>
+		</div>
+	</body>
+</html>
+
+<script>
+	import { runDemos } from '../scripts/run-demos';
+	// Draw once fonts are in, so the demos are sized to JetBrains Mono's columns.
+	document.fonts.ready.then(() => {
+		runDemos();
+		document.documentElement.dataset.ready = '';
+	});
+</script>
+
+<style>
+	html,
+	body {
+		width: 1200px;
+		height: 630px;
+		overflow: hidden;
+	}
+	.card {
+		display: grid;
+		grid-template-columns: 470px 1fr;
+		gap: 40px;
+		width: 1200px;
+		height: 630px;
+		padding: 52px 40px 52px 56px;
+		background:
+			radial-gradient(ellipse 60% 70% at 0% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent),
+			var(--dark);
+	}
+	.pitch {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+	.brand {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		margin: 0;
+		font-size: 30px;
+		font-weight: 700;
+		color: var(--fg);
+	}
+	.mark {
+		display: grid;
+		place-items: center;
+		width: 48px;
+		height: 48px;
+		border-radius: 8px;
+		background: var(--accent);
+		color: var(--on-accent);
+		font-size: 22px;
+		font-weight: 800;
+		letter-spacing: -1px;
+	}
+	h1 {
+		margin: 40px 0 0;
+		font-size: 54px;
+		line-height: 1.08;
+		letter-spacing: -1.5px;
+		font-weight: 800;
+		color: var(--fg);
+	}
+	.accent {
+		color: var(--accent);
+	}
+	.sub {
+		margin: 24px 0 0;
+		font-size: 19px;
+		line-height: 1.45;
+		color: var(--muted);
+	}
+	.cmd {
+		align-self: flex-start;
+		margin: auto 0 0;
+		padding: 10px 18px;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		background: var(--bg);
+		font-size: 24px;
+		font-weight: 500;
+		color: var(--fg);
+	}
+	.meta {
+		margin: 16px 0 0;
+		font-size: 16px;
+		color: var(--muted);
+	}
+	.grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		grid-template-rows: 1fr 1fr;
+		gap: 10px;
+		min-width: 0;
+	}
+	.grid .wide {
+		grid-column: 1 / -1;
+	}
+	.pane {
+		box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+	}
+	.pane-bar {
+		cursor: default;
+	}
+	.pane-body {
+		min-height: 0;
+		/* run-demos grows a full-width ("stacked") pane to fit its demo; the card's
+		   panes keep their grid size and clip instead. */
+		height: auto !important;
+	}
+	.demo {
+		font-size: 12px;
+	}
+</style>
