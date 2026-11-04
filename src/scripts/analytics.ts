@@ -33,7 +33,8 @@ const linkName = (url: URL): Data | null => {
 };
 
 export function startAnalytics() {
-	// Outbound links, by name. Middle clicks open tabs too, so count auxclick as well.
+	// Outbound links, by name. Middle clicks open tabs too, so count those as well,
+	// but not right clicks, which only open the context menu.
 	const outbound = (e: MouseEvent) => {
 		const a = (e.target as Element | null)?.closest?.('a[href^="http"]');
 		if (!(a instanceof HTMLAnchorElement)) return;
@@ -41,13 +42,14 @@ export function startAnalytics() {
 		if (hit) send('outbound_click', hit);
 	};
 	document.addEventListener('click', outbound);
-	document.addEventListener('auxclick', outbound);
+	document.addEventListener('auxclick', (e) => {
+		if (e.button === 1) outbound(e);
+	});
 
-	// Switching windows from the status line (or the back button). Not the first load.
-	const windows = new Set([...document.querySelectorAll<HTMLElement>('[data-window]')].map((w) => w.id));
-	window.addEventListener('hashchange', () => {
-		const id = location.hash.slice(1);
-		if (windows.has(id)) send('window_view', { window: id });
+	// Switching windows, however it happens (status line, back button, a pane's title bar).
+	// index.astro raises this from its window switch, and not on the first load.
+	document.addEventListener('opscope:window-shown', (e) => {
+		send('window_view', { window: (e as CustomEvent<string>).detail });
 	});
 
 	// Themes, from the status-line menu or the shell (see index.astro), or a ?theme= link.
@@ -71,6 +73,8 @@ export function startAnalytics() {
 		clearTimeout(timer);
 		timer = window.setTimeout(() => {
 			const query = q.value.trim().toLowerCase().slice(0, 40);
+			// A cleared box ends a search, so the same query typed again counts again.
+			if (!query) last = '';
 			if (!query || query === last) return;
 			last = query;
 			send('widget_search', { query, results: parseInt(count?.textContent ?? '', 10) || 0 });

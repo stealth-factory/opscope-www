@@ -149,10 +149,14 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	const windows = [...document.querySelectorAll('[data-window]')];
 	const tabs = [...document.querySelectorAll('[data-win]')];
 	const title = document.querySelector('[data-window-title]');
+	let shown = null;
 	const show = () => {
 		// #opscope was the first window's old name; keep old links working.
 		const want = location.hash.slice(1) === 'opscope' ? windows[0].id : location.hash.slice(1);
 		const id = windows.some((w) => w.id === want) ? want : windows[0].id;
+		// Tell analytics about a switch to another window, but not about the first load.
+		if (shown !== null && shown !== id) document.dispatchEvent(new CustomEvent('opscope:window-shown', { detail: id }));
+		shown = id;
 		windows.forEach((w) => (w.hidden = w.id !== id));
 		tabs.forEach((t) => {
 			const on = t.dataset.win === id;
