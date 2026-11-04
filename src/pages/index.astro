@@ -107,7 +107,7 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 			<span class="info">{widgets.length} widgets · Linux · macOS · AGPL-3.0</span>
 			<div class="theme-picker">
 				<button type="button" class="theme" data-theme-toggle aria-haspopup="true" aria-expanded="false" aria-controls="theme-menu">
-					theme:{' '}<span data-theme-name>{defaultTheme}</span>{' '}▴
+					<span class="theme-word">theme:</span><span class="theme-name" data-theme-name>{defaultTheme}</span>▴
 				</button>
 				<div class="theme-menu" id="theme-menu" role="menu" aria-label="Terminal theme" hidden>
 					{
