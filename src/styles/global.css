@@ -174,11 +174,11 @@ main {
 	overflow: hidden;
 }
 /* Stacked layout (phones, narrow windows), where the panes sit below the shell in the
-   same column: the shell takes 40% of the screen; its text scrolls inside it. */
+   same column: the shell takes 70% of the screen; its text scrolls inside it. */
 @media (max-width: 859px) {
 	.shell {
-		height: 40vh;
-		height: 40dvh;
+		height: 70vh;
+		height: 70dvh;
 		min-height: 0;
 	}
 }
