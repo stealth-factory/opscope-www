@@ -15,6 +15,16 @@ try {
 	// A fixed time and zone, so the clocks pane reads the same on every run.
 	const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, reducedMotion: 'reduce', timezoneId: 'UTC' });
 	await page.clock.setFixedTime(new Date('2026-11-04T09:42:43Z'));
+	// The demos fill their charts with Math.random(), so seed it (mulberry32) for the same image each run.
+	await page.addInitScript(() => {
+		let s = 0x6f707363;
+		Math.random = () => {
+			s = (s + 0x6d2b79f5) | 0;
+			let t = Math.imul(s ^ (s >>> 15), 1 | s);
+			t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+			return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+		};
+	});
 	await page.goto(`${base}/og`);
 	await page.waitForSelector('html[data-ready]');
 	await page.screenshot({ path: `${root}public/og.png` });
