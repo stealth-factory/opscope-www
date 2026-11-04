@@ -134,8 +134,10 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 </Base>
 
 <script>
+	import { startAnalytics } from '../scripts/analytics';
 	import { runDemos } from '../scripts/run-demos';
 	import { startShell } from '../scripts/shell';
+	startAnalytics();
 	runDemos();
 	startShell().catch((e) => console.warn('[opscope] shell did not start', e));
 </script>
@@ -231,7 +233,9 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	const menu = document.getElementById('theme-menu');
 	const items = [...menu.querySelectorAll('[data-theme-id]')];
 	const current = () => (themeIds.includes(root.dataset.theme) ? root.dataset.theme : defaultTheme);
-	const setTheme = (id, save) => {
+	// `via` says who chose it (menu, shell), for analytics; none means just restoring it.
+	// A ?theme= link is counted in analytics.ts, which loads after this runs.
+	const setTheme = (id, save, via) => {
 		root.dataset.theme = id;
 		name.textContent = id;
 		items.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.themeId === id)));
@@ -240,9 +244,10 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 				localStorage.setItem('opscope-theme', id);
 			} catch {}
 		}
+		if (via) document.dispatchEvent(new CustomEvent('opscope:theme-chosen', { detail: { id, via } }));
 	};
 	// The shell's `theme <name>` command.
-	document.addEventListener('opscope:theme', (e) => setTheme(e.detail, true));
+	document.addEventListener('opscope:theme', (e) => setTheme(e.detail, true, 'shell'));
 	// The shell's theme picker previews a theme as you move over it, like hovering this
 	// menu: only the page colours change, not the chosen theme. With no theme it ends the
 	// preview, going back to whatever is chosen now (the status menu may have changed it).
@@ -264,7 +269,7 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 	toggle.addEventListener('click', () => (menu.hidden ? openMenu(true) : closeMenu()));
 	items.forEach((b, i) => {
 		b.addEventListener('click', () => {
-			setTheme(b.dataset.themeId, true);
+			setTheme(b.dataset.themeId, true, 'menu');
 			openMenu(false);
 			toggle.focus();
 		});
