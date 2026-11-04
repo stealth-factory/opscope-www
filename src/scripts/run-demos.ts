@@ -1,5 +1,5 @@
 import { demos } from './demos';
-import { toHtml } from './tui';
+import { bar, blank, header, scan, spin, toHtml, type Line } from './tui';
 
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -13,6 +13,30 @@ const PROBE_ROWS = 200;
 const stacked = (pane: HTMLElement) => {
 	const grid = pane.parentElement;
 	return !!grid && pane.offsetWidth >= grid.clientWidth - 1;
+};
+
+/** Visible demos redraw this often between data ticks, so spinners spin and numbers roll. */
+const FRAME_MS = 120;
+
+/** How long a pane shows its start-up loader the first time it comes into view. */
+const BOOT_MS = 1500;
+
+/** The start-up screen: the widget connecting and fetching, before its first frame. */
+const boot = (name: string, cols: number, t: number): Line[] => {
+	const steps = ['reading config', 'checking credentials', `fetching ${name} data`, 'drawing'];
+	const done = Math.min(steps.length, Math.floor(t * steps.length));
+	const L: Line[] = [header(name.toUpperCase(), cols), blank(), [[` ${spin()} `, 'acc'], [`starting ${name}…`, 'fg']], blank()];
+	steps.forEach((s, i) => {
+		if (i < done) L.push([['  ✓ ', 'g'], [s, 'mu']]);
+		else if (i === done) L.push([[`  ${spin(i)} `, 'y'], [s + '…', 'fg']]);
+	});
+	L.push(blank());
+	const w = Math.max(10, cols - 10);
+	const b = bar(t, w);
+	L.push([['  ' + b.on, 'acc'], [b.off, 'dim'], [' ' + String(Math.round(t * 100)).padStart(3) + '%', 'mu']]);
+	const sc = scan(w);
+	L.push([['  ' + sc.before, 'dim'], [sc.lit, 'c'], [sc.after, 'dim']]);
+	return L;
 };
 
 /** Start a text-mode demo in every `pre[data-demo]`, sized to its box. */
@@ -57,10 +81,17 @@ export function runDemos() {
 		};
 		let visible = false;
 		let timer = 0;
+		let frames = 0;
+		// Set the first time the pane is seen with motion allowed; a little stagger so
+		// panes on screen together don't finish loading in lockstep.
+		let bootAt = 0;
+		const bootFor = BOOT_MS + Math.random() * 700;
 		const draw = () => {
 			fit();
 			const [cols, rows] = size();
-			pre.innerHTML = toHtml(demo.render(cols, rows), cols, rows);
+			const t = bootAt ? (Date.now() - bootAt) / bootFor : 1;
+			const lines = t < 1 ? boot(pre.dataset.demo ?? '', cols, t) : demo.render(cols, rows);
+			pre.innerHTML = toHtml(lines, cols, rows);
 			pre.appendChild(p);
 		};
 		const loop = () => {
@@ -69,13 +100,17 @@ export function runDemos() {
 		};
 		const sync = () => {
 			clearInterval(timer);
-			if (visible && !document.hidden && !reduced.matches) timer = window.setInterval(loop, demo.every);
+			clearInterval(frames);
+			if (!visible || document.hidden || reduced.matches) return;
+			if (!bootAt) bootAt = Date.now();
+			timer = window.setInterval(loop, demo.every);
+			if (demo.every > FRAME_MS) frames = window.setInterval(draw, FRAME_MS);
 		};
 		new IntersectionObserver((entries) => {
 			// The last entry is the newest if several queued up.
 			visible = entries[entries.length - 1].isIntersecting;
-			if (visible) draw();
 			sync();
+			if (visible) draw();
 		}).observe(pre);
 		new ResizeObserver(() => visible && draw()).observe(pre);
 		document.addEventListener('visibilitychange', sync);
