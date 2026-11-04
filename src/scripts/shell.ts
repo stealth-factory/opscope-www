@@ -145,6 +145,7 @@ export async function startShell() {
 			return false;
 		}
 		const demo = make();
+		document.dispatchEvent(new CustomEvent('opscope:widget-run', { detail: { name, via: casual ? 'pane' : 'shell' } }));
 		shell.classList.add('running');
 		// The program covers the pane from its top, so bring the pane's own scroll back there.
 		pane?.scrollTo(0, 0);
@@ -212,10 +213,16 @@ export async function startShell() {
 		return true;
 	};
 
+	const KNOWN = new Set(['help', '?', 'ls', 'widgets', 'opscope', 'theme', 'install', 'about', 'docs', 'github', 'releases', 'changelog', 'clear', 'whoami', 'history', 'exit', 'logout', 'sudo']);
 	const exec = (input: string) => {
 		const [cmd = '', ...args] = input.trim().split(/\s+/);
 		const words = cmd === 'npx' ? args : [cmd, ...args];
 		const [head = '', arg] = words;
+		// For analytics: the command's name from a fixed set, never what was typed after it.
+		if (head) {
+			const known = KNOWN.has(head) ? head : names.includes(head) ? 'opscope' : 'unknown';
+			document.dispatchEvent(new CustomEvent('opscope:command', { detail: known }));
+		}
 		switch (head) {
 			case '':
 				return;
