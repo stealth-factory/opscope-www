@@ -964,9 +964,291 @@ function matrix(): Demo {
 	};
 }
 
+/* ── system ──────────────────────────────────────────────────────────── */
+
+function disk(): Demo {
+	const GB = 1e9;
+	const mounts = [
+		{ mount: '/', type: 'ext4', size: 100 * GB, used: 80.4 * GB, rate: 1.2 * GB },
+		{ mount: '/home', type: 'xfs', size: 200 * GB, used: 40 * GB, rate: 0 },
+		{ mount: '/srv', type: 'ext4', size: 500 * GB, used: 310 * GB, rate: 6.5 * GB },
+	];
+	const disks = [
+		{ name: 'nvme0n1', type: 'ssd', size: '1T', r: 1.5e6, w: 18e6, busy: 18 },
+		{ name: 'sda', type: 'hdd', size: '4T', r: 4e5, w: 1e6, busy: 2 },
+	];
+	const rd: number[] = hist(90, () => rnd(2e5, 3e6)), wr: number[] = hist(90, () => rnd(1e6, 3e7));
+	let some = 23.1, full = 7.2, sel = 0, f = 0;
+	const step = () => {
+		f++;
+		const burst = Math.random() < 0.15;
+		push(rd, burst ? rnd(2e6, 9e6) : rnd(2e5, 3e6), 90);
+		push(wr, burst ? rnd(2e7, 6e7) : rnd(1e6, 2.5e7), 90);
+		disks[0].r = rd[rd.length - 1] * 0.8;
+		disks[0].w = wr[wr.length - 1] * 0.9;
+		disks[0].busy = Math.round(clamp(disks[0].w / 4e5, 3, 96));
+		disks[1].r = rd[rd.length - 1] * 0.2;
+		disks[1].w = wr[wr.length - 1] * 0.1;
+		disks[1].busy = Math.round(clamp(disks[1].w / 2e5, 0, 40));
+		// A demo hour passes every 2s, so the filling mounts creep up.
+		mounts.forEach((m) => (m.used = Math.min(m.size * 0.995, m.used + m.rate / 1800)));
+		some = walk(some, 1.5, 4, 40);
+		full = walk(full, 0.8, 0, some / 2);
+		if (f % 8 === 0) sel = (sel + 1) % mounts.length;
+	};
+	const fills = (m: (typeof mounts)[number]) => {
+		if (!m.rate) return 'not filling';
+		const h = (m.size - m.used) / m.rate;
+		return h < 24 ? `~${Math.round(h)}h` : `~${Math.floor(h / 24)}d ${Math.round(h % 24)}h`;
+	};
+	return {
+		every: 1000,
+		tick: step,
+		render(cols) {
+			const L: Line[] = [
+				header('DISK', cols),
+				[[` sampled ${f % 2}s ago · every 2s`, 'mu']],
+				[[` ${mounts.length} of 11 shown · pseudo, bind, read-only hidden`, 'mu']],
+				blank(),
+				section('FILESYSTEMS', 'usable excludes root reserve'),
+				[[' ' + pad('MOUNT', 7) + padL('SIZE', 6) + padL('USABLE', 8) + ' '.repeat(12) + 'FULL IN', 'c']],
+			];
+			mounts.forEach((m, i) => {
+				const frac = m.used / m.size;
+				const b = bar(frac, 6);
+				const c: Colour = frac > 0.9 ? 'r' : frac > 0.8 ? 'y' : 'g';
+				const fi = fills(m);
+				L.push([[i === sel ? '▸' : ' ', 'acc'], [pad(m.mount, 7), 'fg'], [padL(fmtBytes(m.size).replace(' ', ''), 6), 'mu'], [padL(fmtBytes(m.size - m.used).replace(' ', ''), 8) + ' ', 'fg'], [b.on, c], [b.off, 'dim'], [padL(Math.round(frac * 100) + '%', 4) + ' ', c], [fi, fi.startsWith('~') && !fi.includes('d') ? 'r' : fi.startsWith('~') ? 'y' : 'mu']]);
+			});
+			L.push([[' FULL IN at the rate of the last 24h', 'mu']]);
+			L.push(blank(), section('DISKS', 'whole disks · sorted: write'));
+			L.push([[' ' + pad('DISK', 10) + pad('TYPE', 6) + padL('SIZE', 5) + padL('READ', 9) + padL('WRITE', 9) + padL('BUSY', 6), 'c']]);
+			disks.forEach((d) => L.push([[' ' + pad(d.name, 10), 'fg'], [pad(d.type, 6) + padL(d.size, 5), 'mu'], [padL(fmtRate(d.r).replace(' ', ''), 9), 'b'], [padL(fmtRate(d.w).replace(' ', ''), 9), 'm'], [padL(d.busy + '%', 6), d.busy > 80 ? 'r' : d.busy > 50 ? 'y' : 'fg']]));
+			// Read above the line, write below, each on its own scale (writes run ten times larger).
+			const w = cols - 15;
+			L.push(blank());
+			columns(rd.slice(-w), 2).forEach((s, i) => L.push([[i === 1 ? padL('read ' + fmtRate(rd[rd.length - 1]).replace(' ', ''), 13) + ' ' : ' '.repeat(14), 'mu'], [s, 'b']]));
+			L.push([[' '.repeat(14) + '─'.repeat(w), 'mu']]);
+			columns(wr.slice(-w), 2).reverse().forEach((s, i) => L.push([[i === 0 ? padL('write ' + fmtRate(wr[wr.length - 1]).replace(' ', ''), 13) + ' ' : ' '.repeat(14), 'mu'], [s.replace(/[▁▂▃▄▅▆▇]/g, '▀'), 'm']]));
+			L.push(blank(), [[' /proc/pressure/io · stall time, not busy time', 'mu']]);
+			L.push([[' some ', 'mu'], [`${some.toFixed(1)}%`, some > 30 ? 'r' : some > 15 ? 'y' : 'fg'], [' avg10   full ', 'mu'], [`${full.toFixed(1)}%`, full > 10 ? 'r' : 'fg'], [' avg10', 'mu']]);
+			L.push(blank(), keys('↑↓ select  [↵] detail  [s]ort  tab section  [w] 6h  [p]ause  [q]uit'));
+			return L;
+		},
+	};
+}
+
+/* ── web ─────────────────────────────────────────────────────────────── */
+
+function googleAnalytics(): Demo {
+	// Active users per minute for the last 30 minutes, and the baseline for this minute of the week.
+	const perMin: number[] = hist(30, () => Math.round(rnd(30, 60)));
+	// The opscope site itself: its one page, its windows, and the events it sends.
+	const active = new Roll(71);
+	const base = 48;
+	const pages = [
+		{ t: '/', n: 34 },
+		{ t: '/#widgets', n: 19 },
+		{ t: '/?theme=nord', n: 11 },
+	];
+	const countries = [
+		{ t: 'United States', n: 41 },
+		{ t: 'Australia', n: 9 },
+		{ t: 'Germany', n: 7 },
+	];
+	const events = [
+		{ name: 'command_copy', today: 23, last: 31, d7: [5, 6, 5, 7, 6, 7] },
+		{ name: 'outbound_click', today: 41, last: 38, d7: [3, 4, 3, 5, 4, 5] },
+	];
+	let views = 540, today = 1842;
+	const lastWeek = 1690;
+	const realtime = new Refresh(6, () => {
+		// A new minute lands: the oldest falls off the chart.
+		const n = Math.round(clamp(active.target + rnd(-9, 10), 28, 110));
+		active.set(n);
+		push(perMin, Math.round(n * rnd(0.5, 0.9)), 30);
+		views += Math.round(rnd(-20, 30));
+		pages.forEach((p) => (p.n = Math.max(1, p.n + Math.round(rnd(-3, 3)))));
+		pages.sort((a, b) => b.n - a.n);
+		countries.forEach((c) => (c.n = Math.max(1, c.n + Math.round(rnd(-2, 2)))));
+		countries.sort((a, b) => b.n - a.n);
+		if (Math.random() < 0.4) events[1].today++;
+		if (Math.random() < 0.2) events[0].today++;
+		today += Math.round(rnd(4, 18));
+	}, 3);
+	return {
+		every: 1000,
+		tick() {
+			realtime.poll();
+		},
+		render(cols) {
+			const now = active.n;
+			const d = Math.round(((now - base) / base) * 100);
+			const L: Line[] = [
+				header('GOOGLE ANALYTICS', cols),
+				[[' opscope.stealth-factory.co', 'fg'], ['  ←→ 1 of 2  ', 'mu'], realtime.seg('realtime')],
+				blank(),
+				section('RIGHT NOW', 'last 30 min · GA realtime'),
+				[[' active users ', 'mu'], [String(now), active.moving ? 'g' : 'fg'], [`   baseline ${base} · from 2 of 4 weeks   `, 'mu'], [`${d >= 0 ? '+' : ''}${d}% ${d > 20 ? '▲' : d < -20 ? '▼' : ''}`, d > 20 ? 'g' : d < -20 ? 'r' : 'fg']],
+			];
+			const w = Math.min(30, cols - 16);
+			const pk = Math.max(...perMin);
+			columns(perMin.slice(-w), 3, pk).forEach((s, i) => L.push([[pad(i === 0 ? ' per minute' : i === 1 ? ` peak ${pk}` : ' 30 min → now', 15), 'mu'], [s, 'acc']]));
+			L.push([[' views 30m ', 'mu'], [views.toLocaleString('en-US'), 'fg']]);
+			L.push([[' key events 30m: ', 'mu'], ['command_copy 3', 'fg'], [' (base 2)', 'mu']]);
+			const half = Math.floor((cols - 2) / 2);
+			const two = half >= 24;
+			const tw = (two ? half : cols - 2) - 6;
+			if (two) {
+				L.push([[' ' + pad('PAGE', tw) + padL('NOW', 5) + '  ' + pad('COUNTRY', tw - 1) + padL('NOW', 5), 'c']]);
+				pages.forEach((p, i) => L.push([[' ' + pad(p.t, tw), 'fg'], [padL(p.n, 5) + '  ', 'acc'], [pad(countries[i].t, tw - 1), 'fg'], [padL(countries[i].n, 5), 'acc']]));
+			} else {
+				L.push([[' ' + pad('PAGE', tw) + padL('NOW', 5), 'c']]);
+				pages.forEach((p) => L.push([[' ' + pad(p.t, tw), 'fg'], [padL(p.n, 5), 'acc']]));
+			}
+			L.push(blank(), section('TODAY VS SAME WEEKDAY', 'sessions · 2–6 h behind'));
+			const dt = Math.round(((today - lastWeek) / lastWeek) * 100);
+			L.push([[' to 15:00: today ', 'mu'], [today.toLocaleString('en-US'), 'fg'], [`  last Tue ${lastWeek.toLocaleString('en-US')} `, 'mu'], [`${dt >= 0 ? '+' : ''}${dt}%`, dt >= 0 ? 'g' : 'r']]);
+			L.push(blank(), section('KEY EVENTS', 'today to 15:00 vs same weekday'));
+			L.push([[' ' + pad('EVENT', 15) + padL('TODAY', 6) + padL('LAST', 6) + padL('Δ', 7) + '  LAST 7 D', 'c']]);
+			events.forEach((e, i) => {
+				const de = Math.round(((e.today - e.last) / e.last) * 100);
+				L.push([[i === 0 ? '▸' : ' ', 'acc'], [pad(e.name, 15), 'fg'], [padL(e.today, 6), 'fg'], [padL(e.last, 6), 'mu'], [padL(`${de >= 0 ? '+' : ''}${de}%`, 7), de <= -20 ? 'r' : de >= 20 ? 'g' : 'fg'], ['  ' + spark(e.d7, 8), 'acc'], ['░', 'dim']]);
+			});
+			L.push(blank(), keys('↑↓ row  tab section  ←→ property  ↵ detail  [m]etric  [l]ive  [q]uit'));
+			return L;
+		},
+	};
+}
+
+function googleSearchConsole(): Demo {
+	// Clicks per hour, last 24; the newest hours are still being collected.
+	const shape = (h: number) => 40 + 100 * Math.max(0, Math.sin(((h - 6) / 24) * Math.PI * 2)) + rnd(-12, 12);
+	let hour = 11;
+	const clicks: number[] = Array.from({ length: 24 }, (_, i) => Math.round(shape(hour - 23 + i)));
+	let collecting = 3;
+	const queries = [
+		{ q: 'example widget pricing', impr: 6000, d: 50, pos: 5.0, dp: 0 },
+		{ q: 'example dashboard', impr: 3200, d: 12, pos: 7.4, dp: 0.6 },
+		{ q: 'example', impr: 1000, d: NaN, pos: 5.0, dp: 0 },
+		{ q: 'example cli docs', impr: 840, d: -31, pos: 11.2, dp: -2.1 },
+	];
+	const index = [
+		{ st: 'FAIL', c: 'r' as Colour, page: '/docs/getting-started', why: 'SOFT_404 · Google chose /pricing' },
+		{ st: 'ERROR', c: 'y' as Colour, page: '/docs/old-guide', why: 'HTTP 404 · crawled 34h ago' },
+	];
+	let inspections = 3, sel = 0, f = 0;
+	const refresh = new Refresh(12, () => {
+		// Google finishes an hour: it stops collecting, and a new hour starts.
+		hour = (hour + 1) % 24;
+		push(clicks, Math.round(shape(hour)), 24);
+		collecting = 3;
+		inspections += 1;
+		queries.forEach((q) => (q.impr = Math.round(q.impr * rnd(0.98, 1.04))));
+	}, 4);
+	return {
+		every: 1000,
+		tick() {
+			f++;
+			refresh.poll();
+			if (f % 5 === 0) sel = (sel + 1) % queries.length;
+		},
+		render(cols) {
+			const L: Line[] = [
+				header('SEARCH CONSOLE', cols),
+				[[' sc-domain:example.com', 'fg'], ['   site 1 of 2   ', 'mu'], refresh.seg('fetched')],
+				[[` hourly to ${String(hour).padStart(2, '0')}:00 · Google runs a few hours behind`, 'mu']],
+				blank(),
+				section('LAST 24 HOURS', 'clicks by hour'),
+			];
+			const done = clicks.slice(0, 24 - collecting);
+			const pk = Math.max(...done);
+			const cw = cols >= 64 ? 2 : 1;
+			const grid = columns(clicks.map((v, i) => (i >= 24 - collecting ? 0 : v)), 3, pk);
+			grid.forEach((s, r) => {
+				let row = [...s].map((ch) => ch.repeat(cw)).join(cw > 1 ? ' ' : '');
+				if (r === 2) row = row.slice(0, row.length - collecting * (cw + (cw > 1 ? 1 : 0))) + Array(collecting).fill('░'.repeat(cw)).join(cw > 1 ? ' ' : '');
+				L.push([[pad(r === 0 ? ' clicks' : r === 1 ? ` peak ${pk}` : '', 12), 'mu'], [row, 'g']]);
+			});
+			const total = done.reduce((a, b) => a + b, 0);
+			L.push([[` ${done.length} complete hours: `, 'mu'], [`${total.toLocaleString('en-US')} clicks`, 'fg'], ['  vs last week ', 'mu'], ['+8%', 'g']]);
+			L.push([[' ░ still collecting', 'dim']]);
+			L.push(blank(), section('MOVERS · QUERIES', '7 days vs prior 7'));
+			const qw = Math.max(14, Math.min(26, cols - 26));
+			L.push([['  ' + pad('QUERY', qw) + padL('IMPR', 7) + padL('Δ', 7) + padL('POS', 6), 'c']]);
+			queries.forEach((q, i) => L.push([[i === sel ? '▸ ' : '  ', 'acc'], [pad(q.q, qw), i === sel ? 'acc' : 'fg'], [padL(q.impr.toLocaleString('en-US'), 7), 'fg'], [padL(isNaN(q.d) ? 'new' : `${q.d > 0 ? '+' : ''}${q.d}%`, 7), isNaN(q.d) || q.d > 0 ? 'g' : 'r'], [padL(q.pos.toFixed(1), 6), 'mu'], [q.dp ? (q.dp > 0 ? ' ▲' : ' ▼') + Math.abs(q.dp).toFixed(1) : '', q.dp > 0 ? 'g' : 'r']]));
+			L.push(blank(), section('INDEX HEALTH', `inspected daily · ${inspections}/2,000`));
+			index.forEach((x) => {
+				L.push([['  ' + pad(x.st, 7), x.c], [x.page, 'fg']]);
+				L.push([['           ' + x.why, 'mu']]);
+			});
+			L.push([['  ' + pad('PASS', 7), 'g'], ['23 pages   crawled within 34h', 'mu']]);
+			L.push(blank(), keys('↑↓ select  tab section  ←→ site  ↵ open  [m]etric  [i]nspect  [q]uit'));
+			return L;
+		},
+	};
+}
+
+/* ── agents (Rex) ────────────────────────────────────────────────────── */
+
+function rex(): Demo {
+	let f = 0, pct = 40;
+	const agents = [
+		{ who: 'claude', st: 'BLOCKED', for: 120, cpu: 1, mem: '412M', at: 'api:1', dir: '~/src/api', title: '◑ api', msg: 'permission · approve: cargo test --workspace' },
+		{ who: 'codex', st: 'working', for: 300, cpu: 22, mem: '231M', at: 'web:2', dir: '~/src/web', title: '◑ web', msg: 'rewriting the checkout form' },
+		{ who: 'claude', st: 'done', for: 960, cpu: 0, mem: '388M', at: 'site:2', dir: '~/work/site', title: 'Ok', msg: 'replied \'ok\' as requested' },
+		{ who: 'claude', st: 'unknown', for: 720, cpu: 0, mem: '193M', at: 'work:1', dir: '~', title: '◑ opscope', msg: 'no status reported' },
+	];
+	const order = ['BLOCKED', 'done', 'working', 'unknown'];
+	return {
+		every: 250,
+		tick() {
+			f++;
+			agents.forEach((a) => (a.for += 0.25));
+			agents[1].cpu = Math.round(walk(agents[1].cpu, 4, 4, 70));
+			if (f % 4 === 0) pct = pct >= 100 ? 0 : pct + 1;
+			// Every so often the working agent finishes, then starts on something new.
+			if (f % 80 === 0) {
+				const a = agents[1];
+				a.st = a.st === 'done' ? 'working' : 'done';
+				a.for = 0;
+				a.msg = a.st === 'done' ? 'checkout form rewritten, tests pass' : 'rewriting the checkout form';
+			}
+		},
+		render(cols) {
+			const icon = (s: string): [string, Colour] => (s === 'working' ? [spinner[f % 10], 'y'] : s === 'done' ? ['✓', 'g'] : s === 'BLOCKED' ? ['⚠', 'r'] : ['?', 'mu']);
+			const count = (s: string) => agents.filter((a) => a.st === s).length;
+			const waiting = count('BLOCKED') + count('done');
+			const L: Line[] = [
+				header('REX PANES', cols),
+				[[` ${agents.length} agents · 3 sessions · 10 panes  `, 'fg'], [`${count('BLOCKED')} blocked  `, 'r'], [`${count('done')} done  `, 'g'], [`${count('working')} working`, 'y']],
+				[[' ', 'fg'], ...stack([[count('BLOCKED'), 'r'], [count('done'), 'g'], [count('working'), 'y'], [count('unknown') + 5, 'dim']], cols - 2)],
+				[[` ▸ ${waiting} panes waiting for you`, 'acc']],
+				blank(),
+				section('AGENTS', String(agents.length)),
+				[[' ' + pad('AGENT', 10) + pad('STATE', 9) + padL('FOR', 5) + padL('CPU', 6) + padL('MEM', 6) + '  SESSION', 'c']],
+			];
+			[...agents].sort((a, b) => order.indexOf(a.st) - order.indexOf(b.st)).forEach((a, i) => {
+				const [ic, c] = icon(a.st);
+				L.push([[i === 0 ? '▸' : ' ', 'acc'], [ic + ' ', c], [pad(a.who, 8), 'fg'], [pad(a.st, 9), c], [padL((a.st === 'unknown' ? '≥' : '') + ago(a.for), 5), 'mu'], [padL(a.cpu + '%', 6), 'fg'], [padL(a.mem, 6), 'mu'], ['  ' + a.at, 'c']]);
+				L.push([[`   ${a.dir}  `, 'mu'], [a.title, 'fg']]);
+				L.push([[`   ${a.msg}`, a.st === 'BLOCKED' ? 'y' : 'mu']]);
+			});
+			L.push(blank(), section('PROCESSES', '2 panes running something'));
+			L.push([[' ▪ ', 'b'], [pad('terraform', 14), 'fg'], [pad('working', 9), 'y'], [padL(pct + '%', 5), 'fg'], ['  infra:1', 'c']]);
+			L.push([['   ├ ', 'mu'], ['plan  ', 'fg'], ['done  ', 'g'], ['├ apply  ', 'mu'], [pct < 100 ? `${spinner[f % 10]} running` : '✓ done', pct < 100 ? 'y' : 'g']]);
+			L.push([[' ▪ ', 'b'], [pad('cargo', 14), 'fg'], [pad('', 9), 'mu'], [padL('87%', 5), 'fg'], ['  web:1', 'c']]);
+			L.push(blank(), section('IDLE', '4 panes at a prompt'), [[' ▫ ~/work/site', 'mu']], [[' ▫ ~/src/api', 'mu']]);
+			L.push(blank(), keys('↑↓ select  ↵ switch to this pane  tab section  [e]xplain  [r]efresh  [q]uit'));
+			return L;
+		},
+	};
+}
+
 export const demos: Record<string, () => Demo> = {
-	latency, tailnet, ports, netwatch, link,
+	latency, tailnet, ports, netwatch, link, disk,
 	'vercel-deployments': vercel, github, 'github-actions': githubActions, 'github-prs': githubPrs, linear,
-	'herdr-panes': herdr, 'luvus-panes': luvus, 'agent-usage': agentUsage,
+	'google-analytics': googleAnalytics, 'google-search-console': googleSearchConsole,
+	'herdr-panes': herdr, 'luvus-panes': luvus, 'rex-panes': rex, 'agent-usage': agentUsage,
 	'google-trends': trends, clocks, months, matrix,
 };
