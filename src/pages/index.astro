@@ -12,7 +12,7 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 
 <Base
 	title="opscope · dashboard widgets for your terminal"
-	description="Dashboard widgets for your terminal: live stats from GitHub, Vercel, your network and your coding agents, in sci-fi hacker panels. Seventeen widgets for Linux and macOS. Run them with npx opscope."
+	description={`Dashboard widgets for your terminal: live stats from GitHub, Vercel, your network and your coding agents, in sci-fi hacker panels. ${widgets.length} widgets for Linux and macOS. Run them with npx opscope.`}
 >
 	<div class="screen">
 		<header class="topbar">
@@ -35,7 +35,7 @@ const themeSections = sections.map((g) => ({ label: g.label, themes: themes.filt
 							<p class="muted"># Hollywood called. They want their terminal back.</p>
 							<h1>Dashboard widgets for your <span class="accent">terminal</span>.</h1>
 							<p class="muted">
-								Sci-fi hacker panels with your live stats: GitHub, Vercel, your network and your coding agents. Seventeen widgets for Linux and
+								Sci-fi hacker panels with your live stats: GitHub, Vercel, your network and your coding agents. {widgets.length} widgets for Linux and
 								macOS, each a single self-contained binary. The panes on this screen show what some of them look like, with made-up numbers.
 							</p>
 							<pre class="cmds"><span class="muted"># run it, nothing to install</span>
