@@ -579,101 +579,57 @@ function linear(): Demo {
 
 const spinner = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏';
 
-function herdr(): Demo {
-	let f = 0;
+// mux-activity reads whichever multiplexer it runs in; the demo pretends that is Rex.
+function muxActivity(): Demo {
+	let f = 0, pct = 40;
 	const agents = [
-		{ who: 'claude', st: 'working', for: 16, cpu: 14, mem: '763M', ws: 'infra', task: 'Refactor the schedule module' },
-		{ who: 'codex', st: 'DONE', for: 16, cpu: 6, mem: '231M', ws: 'some-cli', task: 'Investigate the failing test' },
-		{ who: 'claude', st: 'BLOCKED', for: 240, cpu: 0, mem: '512M', ws: 'site', task: 'Needs approval to run the migration' },
-		{ who: 'gemini', st: 'idle', for: 960, cpu: 1, mem: '491M', ws: 'docs', task: 'Plan the repository structure' },
+		{ who: 'claude', st: 'BLOCKED', for: 120, cpu: 1, mem: '412M', at: 'api:1', dir: '~/src/api', title: '◑ api', msg: 'permission · approve: cargo test --workspace' },
+		{ who: 'codex', st: 'working', for: 300, cpu: 22, mem: '231M', at: 'web:2', dir: '~/src/web', title: '◑ web', msg: 'rewriting the checkout form' },
+		{ who: 'claude', st: 'done', for: 960, cpu: 0, mem: '388M', at: 'site:2', dir: '~/work/site', title: 'Ok', msg: 'replied \'ok\' as requested' },
+		{ who: 'claude', st: 'unknown', for: 720, cpu: 0, mem: '193M', at: 'work:1', dir: '~', title: '◑ opscope', msg: 'no status reported' },
 	];
+	const order = ['BLOCKED', 'done', 'working', 'unknown'];
 	return {
 		every: 250,
 		tick() {
 			f++;
 			agents.forEach((a) => (a.for += 0.25));
-			agents[0].cpu = Math.round(walk(agents[0].cpu, 4, 4, 60));
-			if (f % 60 === 0) agents[1].st = agents[1].st === 'DONE' ? 'working' : 'DONE';
-		},
-		render(cols) {
-			const icon = (s: string): [string, Colour] => (s === 'working' ? [spinner[f % 10], 'y'] : s === 'DONE' ? ['✓', 'g'] : s === 'BLOCKED' ? ['⚠', 'r'] : ['·', 'mu']);
-			const waiting = agents.filter((a) => a.st === 'DONE' || a.st === 'BLOCKED').length;
-			const L: Line[] = [
-				header('HERDR PANES', cols),
-				[[` ${agents.length} agents · 3 workspaces   `, 'fg'], [`${agents.filter((a) => a.st === 'working').length} working`, 'y'], ['   1 blocked', 'r']],
-				[[` ▸ ${waiting} agents waiting for you`, 'acc']],
-				blank(),
-				section('AGENTS', String(agents.length)),
-				[[' ' + pad('AGENT', 9) + pad('STATE', 9) + padL('FOR', 5) + padL('CPU', 6) + padL('MEM', 6) + '  WORKSPACE', 'c']],
-			];
-			// needs-a-human first
-			const order = [...agents].sort((a, b) => ['BLOCKED', 'DONE', 'working', 'idle'].indexOf(a.st) - ['BLOCKED', 'DONE', 'working', 'idle'].indexOf(b.st));
-			order.forEach((a, i) => {
-				const [ic, c] = icon(a.st);
-				L.push([[i === 0 ? '▸' : ' ', 'acc'], [ic + ' ', c], [pad(a.who, 7), 'fg'], [pad(a.st, 9), c], [padL(ago(a.for), 5), 'mu'], [padL(a.cpu + '%', 6), 'fg'], [padL(a.mem, 6), 'mu'], ['  ' + a.ws, 'c']]);
-				L.push([[`   ${a.task}`, 'mu']]);
-			});
-			L.push(blank(), section('PROCESSES', '2 panes running something'), [[' ▪ ', 'b'], [pad('pnpm dev', 18), 'fg'], [padL('3%', 5) + padL('116M', 7) + '  site', 'mu']], [[' ▪ ', 'b'], [pad('tailnet', 18), 'fg'], [padL('1%', 5) + padL('16M', 7) + '  infra', 'mu']]);
-			L.push(blank(), section('IDLE', '6 panes at a prompt'), [[' ▫ work/site', 'mu']], [[' ▫ …/monorepo', 'mu']]);
-			L.push(blank(), keys('↑↓ select  ↵ switch to this pane  [i]dle  [r]efresh  [q]uit'));
-			return L;
-		},
-	};
-}
-
-function luvus(): Demo {
-	let f = 0;
-	type A = { who: string; st: 'BLOCKED' | 'DONE' | 'working' | 'idle'; since: number; ws: string; br: string; via: string };
-	const now = Date.now();
-	const agents: A[] = [
-		{ who: 'claude', st: 'BLOCKED', since: now - 240e3, ws: 'some-cli', br: 'feature/port-the-parser', via: 'integration_report' },
-		{ who: 'codex', st: 'DONE', since: now - 960e3, ws: 'site', br: 'main', via: 'manifest_rule' },
-		{ who: 'claude', st: 'working', since: now - 120e3, ws: 'infra', br: 'feature/schedule-module', via: 'screen_text' },
-		{ who: 'gemini', st: 'idle', since: now - 960e3, ws: 'docs', br: 'main', via: 'screen_text' },
-	];
-	const tasks = [
-		{ id: 't-014', st: 'claimed', what: 'Port the parser to the new envelope' },
-		{ id: 't-015', st: 'ready', what: 'Rewrite the lease conflict message' },
-	];
-	// Every few seconds the work moves on: the working agent finishes, the idle one
-	// picks up the ready task, the done one goes idle. The blocked one waits for you.
-	const next: Record<A['st'], A['st']> = { working: 'DONE', idle: 'working', DONE: 'idle', BLOCKED: 'BLOCKED' };
-	const ORDER = ['BLOCKED', 'DONE', 'working', 'idle'];
-	return {
-		every: 250,
-		tick() {
-			f++;
-			if (f % 28 === 0) {
-				agents.forEach((a) => { if (a.st !== 'BLOCKED') { a.st = next[a.st]; a.since = Date.now(); } });
-				tasks[1].st = tasks[1].st === 'ready' ? 'claimed' : 'ready';
+			agents[1].cpu = Math.round(walk(agents[1].cpu, 4, 4, 70));
+			if (f % 4 === 0) pct = pct >= 100 ? 0 : pct + 1;
+			// Every so often the working agent finishes, then starts on something new.
+			if (f % 80 === 0) {
+				const a = agents[1];
+				a.st = a.st === 'done' ? 'working' : 'done';
+				a.for = 0;
+				a.msg = a.st === 'done' ? 'checkout form rewritten, tests pass' : 'rewriting the checkout form';
 			}
 		},
 		render(cols) {
-			const count = (st: A['st']) => agents.filter((a) => a.st === st).length;
-			const icon = (st: A['st']): [string, Colour] => (st === 'working' ? [spin(), 'y'] : st === 'DONE' ? ['✓', 'g'] : st === 'BLOCKED' ? ['⚠', 'r'] : ['·', 'mu']);
+			const icon = (s: string): [string, Colour] => (s === 'working' ? [spinner[f % 10], 'y'] : s === 'done' ? ['✓', 'g'] : s === 'BLOCKED' ? ['⚠', 'r'] : ['?', 'mu']);
+			const count = (s: string) => agents.filter((a) => a.st === s).length;
+			const waiting = count('BLOCKED') + count('done');
 			const L: Line[] = [
-				header('LUVUS PANES', cols),
-				[[' 4 agents · 9 panes   ', 'fg'], [`${count('BLOCKED')} blocked`, 'r'], [`   ${count('DONE')} done`, 'g'], [`   ${count('working')} working`, 'y'], [`   ${count('idle')} idle`, 'mu']],
-				[[' session default · uhp 1.0 · 3 workspaces · seq ', 'mu'], [String(4186 + f), 'fg']],
-				[[` ▸ ${count('BLOCKED') + count('DONE')} agents waiting for you`, blink(1200) ? 'acc' : 'fg']],
+				header('MUX ACTIVITY · REX', cols),
+				[[' in Rex · REX_SESSION and REX_BLOCK are set', 'mu']],
+				[[` ${agents.length} agents · 3 sessions · 10 panes  `, 'fg'], [`${count('BLOCKED')} blocked  `, 'r'], [`${count('done')} done  `, 'g'], [`${count('working')} working`, 'y']],
+				[[' ', 'fg'], ...stack([[count('BLOCKED'), 'r'], [count('done'), 'g'], [count('working'), 'y'], [count('unknown') + 5, 'dim']], cols - 2)],
+				[[` ▸ ${waiting} panes waiting for you`, 'acc']],
 				blank(),
-				section('AGENTS', '4'),
-				[[' ' + pad('AGENT', 10) + pad('STATE', 9) + padL('FOR', 5) + '  ' + pad('WORKSPACE', 10) + 'BRANCH', 'c']],
+				section('AGENTS', String(agents.length)),
+				[[' ' + pad('AGENT', 10) + pad('STATE', 9) + padL('FOR', 5) + padL('CPU', 6) + padL('MEM', 6) + '  SESSION', 'c']],
 			];
-			[...agents].sort((a, b) => ORDER.indexOf(a.st) - ORDER.indexOf(b.st)).forEach((a, i) => {
+			[...agents].sort((a, b) => order.indexOf(a.st) - order.indexOf(b.st)).forEach((a, i) => {
 				const [ic, c] = icon(a.st);
-				L.push([[i === 0 ? '▸' : ' ', 'acc'], [ic + ' ', c], [pad(a.who, 8), 'fg'], [pad(a.st, 9), c], [padL(ago((Date.now() - a.since) / 1000), 5) + '  ', 'mu'], [pad(a.ws, 10), 'c'], [a.br, 'm']]);
-				L.push([[`   state via ${a.via}`, 'mu']]);
+				L.push([[i === 0 ? '▸' : ' ', 'acc'], [ic + ' ', c], [pad(a.who, 8), 'fg'], [pad(a.st, 9), c], [padL((a.st === 'unknown' ? '≥' : '') + ago(a.for), 5), 'mu'], [padL(a.cpu + '%', 6), 'fg'], [padL(a.mem, 6), 'mu'], ['  ' + a.at, 'c']]);
+				L.push([[`   ${a.dir}  `, 'mu'], [a.title, 'fg']]);
+				L.push([[`   ${a.msg}`, a.st === 'BLOCKED' ? 'y' : 'mu']]);
 			});
-			L.push(blank(), section('TASKS', String(tasks.length)));
-			tasks.forEach((t) => L.push([[' ◆ ', 'acc'], [pad(t.id, 8), 'fg'], [pad(t.st, 10), t.st === 'claimed' ? 'y' : 'g'], [t.what, 'fg']]));
-			L.push(
-				blank(),
-				section('LEASES', '1'),
-				[[' ⛒ ', 'o'], [pad('t-014', 8), 'fg'], ['src/parser/**  ', 'c'], ['(claude)', 'mu']],
-				blank(),
-				keys('↑↓ select  ↵ switch to this pane  [t]asks  [r]efresh  [q]uit'),
-			);
+			L.push(blank(), section('PROCESSES', '2 panes running something'));
+			L.push([[' ▪ ', 'b'], [pad('terraform', 14), 'fg'], [pad('working', 9), 'y'], [padL(pct + '%', 5), 'fg'], ['  infra:1', 'c']]);
+			L.push([['   ├ ', 'mu'], ['plan  ', 'fg'], ['done  ', 'g'], ['├ apply  ', 'mu'], [pct < 100 ? `${spinner[f % 10]} running` : '✓ done', pct < 100 ? 'y' : 'g']]);
+			L.push([[' ▪ ', 'b'], [pad('cargo', 14), 'fg'], [pad('', 9), 'mu'], [padL('87%', 5), 'fg'], ['  web:1', 'c']]);
+			L.push(blank(), section('IDLE', '4 panes at a prompt'), [[' ▫ ~/work/site', 'mu']], [[' ▫ ~/src/api', 'mu']]);
+			L.push(blank(), keys('↑↓ select  ↵ switch to this pane  tab section  [i]dle hide  [e]xplain  [q]uit'));
 			return L;
 		},
 	};
@@ -1191,66 +1147,10 @@ function googleSearchConsole(): Demo {
 	};
 }
 
-/* ── agents (Rex) ────────────────────────────────────────────────────── */
-
-function rex(): Demo {
-	let f = 0, pct = 40;
-	const agents = [
-		{ who: 'claude', st: 'BLOCKED', for: 120, cpu: 1, mem: '412M', at: 'api:1', dir: '~/src/api', title: '◑ api', msg: 'permission · approve: cargo test --workspace' },
-		{ who: 'codex', st: 'working', for: 300, cpu: 22, mem: '231M', at: 'web:2', dir: '~/src/web', title: '◑ web', msg: 'rewriting the checkout form' },
-		{ who: 'claude', st: 'done', for: 960, cpu: 0, mem: '388M', at: 'site:2', dir: '~/work/site', title: 'Ok', msg: 'replied \'ok\' as requested' },
-		{ who: 'claude', st: 'unknown', for: 720, cpu: 0, mem: '193M', at: 'work:1', dir: '~', title: '◑ opscope', msg: 'no status reported' },
-	];
-	const order = ['BLOCKED', 'done', 'working', 'unknown'];
-	return {
-		every: 250,
-		tick() {
-			f++;
-			agents.forEach((a) => (a.for += 0.25));
-			agents[1].cpu = Math.round(walk(agents[1].cpu, 4, 4, 70));
-			if (f % 4 === 0) pct = pct >= 100 ? 0 : pct + 1;
-			// Every so often the working agent finishes, then starts on something new.
-			if (f % 80 === 0) {
-				const a = agents[1];
-				a.st = a.st === 'done' ? 'working' : 'done';
-				a.for = 0;
-				a.msg = a.st === 'done' ? 'checkout form rewritten, tests pass' : 'rewriting the checkout form';
-			}
-		},
-		render(cols) {
-			const icon = (s: string): [string, Colour] => (s === 'working' ? [spinner[f % 10], 'y'] : s === 'done' ? ['✓', 'g'] : s === 'BLOCKED' ? ['⚠', 'r'] : ['?', 'mu']);
-			const count = (s: string) => agents.filter((a) => a.st === s).length;
-			const waiting = count('BLOCKED') + count('done');
-			const L: Line[] = [
-				header('REX PANES', cols),
-				[[` ${agents.length} agents · 3 sessions · 10 panes  `, 'fg'], [`${count('BLOCKED')} blocked  `, 'r'], [`${count('done')} done  `, 'g'], [`${count('working')} working`, 'y']],
-				[[' ', 'fg'], ...stack([[count('BLOCKED'), 'r'], [count('done'), 'g'], [count('working'), 'y'], [count('unknown') + 5, 'dim']], cols - 2)],
-				[[` ▸ ${waiting} panes waiting for you`, 'acc']],
-				blank(),
-				section('AGENTS', String(agents.length)),
-				[[' ' + pad('AGENT', 10) + pad('STATE', 9) + padL('FOR', 5) + padL('CPU', 6) + padL('MEM', 6) + '  SESSION', 'c']],
-			];
-			[...agents].sort((a, b) => order.indexOf(a.st) - order.indexOf(b.st)).forEach((a, i) => {
-				const [ic, c] = icon(a.st);
-				L.push([[i === 0 ? '▸' : ' ', 'acc'], [ic + ' ', c], [pad(a.who, 8), 'fg'], [pad(a.st, 9), c], [padL((a.st === 'unknown' ? '≥' : '') + ago(a.for), 5), 'mu'], [padL(a.cpu + '%', 6), 'fg'], [padL(a.mem, 6), 'mu'], ['  ' + a.at, 'c']]);
-				L.push([[`   ${a.dir}  `, 'mu'], [a.title, 'fg']]);
-				L.push([[`   ${a.msg}`, a.st === 'BLOCKED' ? 'y' : 'mu']]);
-			});
-			L.push(blank(), section('PROCESSES', '2 panes running something'));
-			L.push([[' ▪ ', 'b'], [pad('terraform', 14), 'fg'], [pad('working', 9), 'y'], [padL(pct + '%', 5), 'fg'], ['  infra:1', 'c']]);
-			L.push([['   ├ ', 'mu'], ['plan  ', 'fg'], ['done  ', 'g'], ['├ apply  ', 'mu'], [pct < 100 ? `${spinner[f % 10]} running` : '✓ done', pct < 100 ? 'y' : 'g']]);
-			L.push([[' ▪ ', 'b'], [pad('cargo', 14), 'fg'], [pad('', 9), 'mu'], [padL('87%', 5), 'fg'], ['  web:1', 'c']]);
-			L.push(blank(), section('IDLE', '4 panes at a prompt'), [[' ▫ ~/work/site', 'mu']], [[' ▫ ~/src/api', 'mu']]);
-			L.push(blank(), keys('↑↓ select  ↵ switch to this pane  tab section  [e]xplain  [r]efresh  [q]uit'));
-			return L;
-		},
-	};
-}
-
 export const demos: Record<string, () => Demo> = {
 	latency, tailnet, ports, netwatch, link, disk,
 	'vercel-deployments': vercel, github, 'github-actions': githubActions, 'github-prs': githubPrs, linear,
 	'google-analytics': googleAnalytics, 'google-search-console': googleSearchConsole,
-	'herdr-panes': herdr, 'luvus-panes': luvus, 'rex-panes': rex, 'agent-usage': agentUsage,
+	'mux-activity': muxActivity, 'agent-usage': agentUsage,
 	'google-trends': trends, clocks, months, matrix,
 };
