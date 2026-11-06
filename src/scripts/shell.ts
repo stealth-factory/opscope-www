@@ -8,7 +8,7 @@ import { WTerm } from '@wterm/dom';
 import '@wterm/dom/css';
 import { demos } from './demos';
 import { FRAME_MS, type Line } from './tui';
-import { groups, widgets, docsUrl } from '../data/widgets';
+import { groups, widgets, docsUrl, aliases } from '../data/widgets';
 import { themeGroups, themes } from '../data/themes';
 
 const ESC = '\x1b[';
@@ -36,6 +36,7 @@ const ansi = (line: Line, cols: number) => {
 };
 
 const names = widgets.map((w) => w.name);
+const isWidget = (n: string) => names.includes(n) || Object.hasOwn(aliases, n);
 const COMMANDS = ['help', 'ls', 'widgets', 'opscope', 'npx', 'theme', 'install', 'about', 'docs', 'github', 'releases', 'changelog', 'clear', 'whoami', 'history', 'exit'];
 // The release log: every version's notes, on GitHub.
 const RELEASES = 'https://github.com/stealth-factory/opscope/releases';
@@ -137,6 +138,10 @@ export async function startShell() {
 	};
 
 	const run = (name: string) => {
+		if (Object.hasOwn(aliases, name)) {
+			line(paint(`${name} is now ${aliases[name]}`, 'mu'));
+			name = aliases[name];
+		}
 		// Own keys only, so `opscope constructor` is not taken for a widget.
 		const make = Object.hasOwn(demos, name) ? demos[name] : undefined;
 		if (!make) {
@@ -216,7 +221,7 @@ export async function startShell() {
 		const [head = '', arg] = words;
 		// For analytics: the command's name from a fixed set, never what was typed after it.
 		if (head) {
-			const known = KNOWN.has(head) ? head : names.includes(head) ? 'opscope' : 'unknown';
+			const known = KNOWN.has(head) ? head : isWidget(head) ? 'opscope' : 'unknown';
 			document.dispatchEvent(new CustomEvent('opscope:command', { detail: known }));
 		}
 		switch (head) {
@@ -263,7 +268,7 @@ export async function startShell() {
 			case 'sudo':
 				return line(paint('Nice try.', 'r'));
 			default:
-				if (names.includes(head)) return void run(head);
+				if (isWidget(head)) return void run(head);
 				line(`zsh: command not found: ${head}  ${paint('(try help)', 'mu')}`);
 		}
 	};

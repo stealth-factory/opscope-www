@@ -29,9 +29,7 @@ export const widgets: Widget[] = [
 	{ name: 'linear', group: 'dev', line: 'Linear across every team: outstanding work, running cycles and their scope creep.', needs: 'curl, Linear API key' },
 	{ name: 'google-analytics', group: 'dev', line: 'GA4 on a wall: is traffic normal right now against a baseline it records itself, and did key events hold up?', needs: 'Google service account' },
 	{ name: 'google-search-console', group: 'dev', line: 'Which pages and queries moved in Google Search, what people search to arrive, and which earners are broken in the index.', needs: 'Google service account' },
-	{ name: 'herdr-panes', group: 'agents', line: 'Every agent and process across all workspaces, ordered by which one needs a human.', needs: 'herdr' },
-	{ name: 'luvus-panes', group: 'agents', line: 'Agents in a Luvus session ordered by who needs a human, plus their tasks and reserved paths.', needs: 'luvus' },
-	{ name: 'rex-panes', group: 'agents', line: 'Everything under a Rex server, across every session: agents by the state they report themselves, blocked first.', needs: 'rex' },
+	{ name: 'mux-activity', group: 'agents', line: 'Every pane of the multiplexer it runs in, Rex, Herdr or Luvus, ordered by which one needs a human.', needs: 'rex, herdr or luvus' },
 	{ name: 'agent-usage', group: 'agents', line: 'How much each coding agent has been used, and what is left of each one’s rate limit.', needs: 'the agents’ own logins' },
 	{ name: 'google-trends', group: 'ambient', line: 'What a region is searching for right now, from Google’s Trending Now feed. No account or key.', needs: 'curl' },
 	{ name: 'clocks', group: 'ambient', line: 'Server clock, countdowns to the hour and end of day, a pomodoro and a world clock.', needs: 'nothing' },
@@ -44,8 +42,11 @@ export const widgets: Widget[] = [
  * beside the shell (six panes, three across); the rest fill the screen on
  * their own (eight panes, four across).
  */
+// Old widget names the CLI still accepts, and the widget each one starts.
+export const aliases: Record<string, string> = { 'rex-panes': 'mux-activity', 'herdr-panes': 'mux-activity', 'luvus-panes': 'mux-activity' };
+
 export const screens = [
-	{ id: 'factory', title: 'software factory', widgets: ['vercel-deployments', 'github-actions', 'clocks', 'herdr-panes', 'github-prs', 'agent-usage'] },
+	{ id: 'factory', title: 'software factory', widgets: ['vercel-deployments', 'github-actions', 'clocks', 'mux-activity', 'github-prs', 'agent-usage'] },
 	{ id: 'dashboard', title: 'dashboard', widgets: ['github', 'linear', 'google-trends', 'netwatch', 'ports', 'tailnet', 'google-search-console', 'google-analytics'] },
 ] as const;
 
