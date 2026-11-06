@@ -1163,11 +1163,13 @@ function googleSearchConsole(): Demo {
 			];
 			const done = clicks.slice(0, 24 - collecting);
 			const pk = Math.max(...done);
-			const cw = cols >= 64 ? 2 : 1;
+			// Wide bars (2 chars + a gap) need 12 + 24 * 3 - 1 = 83 columns; below that, 1-char bars keep every hour visible.
+			const cw = cols >= 83 ? 2 : 1;
 			const grid = columns(clicks.map((v, i) => (i >= 24 - collecting ? 0 : v)), 3, pk);
 			grid.forEach((s, r) => {
-				let row = [...s].map((ch) => ch.repeat(cw)).join(cw > 1 ? ' ' : '');
-				if (r === 2) row = row.slice(0, row.length - collecting * (cw + (cw > 1 ? 1 : 0))) + Array(collecting).fill('░'.repeat(cw)).join(cw > 1 ? ' ' : '');
+				const row = [...s]
+					.map((ch, i) => (r === 2 && i >= 24 - collecting ? '░' : ch).repeat(cw))
+					.join(cw > 1 ? ' ' : '');
 				L.push([[pad(r === 0 ? ' clicks' : r === 1 ? ` peak ${pk}` : '', 12), 'mu'], [row, 'g']]);
 			});
 			const total = done.reduce((a, b) => a + b, 0);
