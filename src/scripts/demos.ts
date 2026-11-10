@@ -5,7 +5,7 @@
  */
 import {
 	bar, blank, clamp, clock, columns, fmtBytes, fmtDur, fmtMs, fmtRate, header, keys, pad, padL, pick, push, rnd,
-	section, spark, stack, walk, blink, spin, BLOCKS, Refresh, Roll, type Colour, type Line,
+	section, spark, stack, walk, blink, spin, BLOCKS, Refresh, Roll, type Colour, type Line, type Seg,
 } from './tui';
 
 export interface Demo {
@@ -963,8 +963,7 @@ function disk(): Demo {
 		render(cols) {
 			const L: Line[] = [
 				header('DISK', cols),
-				[[` sampled ${f % 2}s ago · every 2s`, 'mu']],
-				[[` ${mounts.length} of 11 shown · pseudo, bind, read-only hidden`, 'mu']],
+				[[` sampled ${f % 2}s ago · every 2s · ${mounts.length} of 11 shown`, 'mu']],
 				blank(),
 				section('FILESYSTEMS', 'usable excludes root reserve'),
 				[[' ' + pad('MOUNT', 7) + padL('SIZE', 6) + padL('USABLE', 8) + ' '.repeat(12) + 'FULL IN', 'c']],
@@ -976,19 +975,85 @@ function disk(): Demo {
 				const fi = fills(m);
 				L.push([[i === sel ? '▸' : ' ', 'acc'], [pad(m.mount, 7), 'fg'], [padL(fmtBytes(m.size).replace(' ', ''), 6), 'mu'], [padL(fmtBytes(m.size - m.used).replace(' ', ''), 8) + ' ', 'fg'], [b.on, c], [b.off, 'dim'], [padL(Math.round(frac * 100) + '%', 4) + ' ', c], [fi, fi.startsWith('~') && !fi.includes('d') ? 'r' : fi.startsWith('~') ? 'y' : 'mu']]);
 			});
-			L.push([[' FULL IN at the rate of the last 24h', 'mu']]);
 			L.push(blank(), section('DISKS', 'whole disks · sorted: write'));
 			L.push([[' ' + pad('DISK', 10) + pad('TYPE', 6) + padL('SIZE', 5) + padL('READ', 9) + padL('WRITE', 9) + padL('BUSY', 6), 'c']]);
 			disks.forEach((d) => L.push([[' ' + pad(d.name, 10), 'fg'], [pad(d.type, 6) + padL(d.size, 5), 'mu'], [padL(fmtRate(d.r).replace(' ', ''), 9), 'b'], [padL(fmtRate(d.w).replace(' ', ''), 9), 'm'], [padL(d.busy + '%', 6), d.busy > 80 ? 'r' : d.busy > 50 ? 'y' : 'fg']]));
 			// Read above the line, write below, each on its own scale (writes run ten times larger).
 			const w = cols - 15;
-			L.push(blank());
-			columns(rd.slice(-w), 2).forEach((s, i) => L.push([[i === 1 ? padL('read ' + fmtRate(rd[rd.length - 1]).replace(' ', ''), 13) + ' ' : ' '.repeat(14), 'mu'], [s, 'b']]));
+			columns(rd.slice(-w), 1).forEach((s, i) => L.push([[i === 0 ? padL('read ' + fmtRate(rd[rd.length - 1]).replace(' ', ''), 13) + ' ' : ' '.repeat(14), 'mu'], [s, 'b']]));
 			L.push([[' '.repeat(14) + '─'.repeat(w), 'mu']]);
-			columns(wr.slice(-w), 2).reverse().forEach((s, i) => L.push([[i === 0 ? padL('write ' + fmtRate(wr[wr.length - 1]).replace(' ', ''), 13) + ' ' : ' '.repeat(14), 'mu'], [s.replace(/[▁▂▃▄▅▆▇]/g, '▀'), 'm']]));
-			L.push(blank(), [[' /proc/pressure/io · stall time, not busy time', 'mu']]);
-			L.push([[' some ', 'mu'], [`${some.toFixed(1)}%`, some > 30 ? 'r' : some > 15 ? 'y' : 'fg'], [' avg10   full ', 'mu'], [`${full.toFixed(1)}%`, full > 10 ? 'r' : 'fg'], [' avg10', 'mu']]);
+			columns(wr.slice(-w), 1).reverse().forEach((s, i) => L.push([[i === 0 ? padL('write ' + fmtRate(wr[wr.length - 1]).replace(' ', ''), 13) + ' ' : ' '.repeat(14), 'mu'], [s.replace(/[▁▂▃▄▅▆▇]/g, '▀'), 'm']]));
+			L.push([[' io pressure  some ', 'mu'], [`${some.toFixed(1)}%`, some > 30 ? 'r' : some > 15 ? 'y' : 'fg'], [' avg10   full ', 'mu'], [`${full.toFixed(1)}%`, full > 10 ? 'r' : 'fg'], [' avg10', 'mu']]);
+			// Who is writing (v2.11): by service from cgroup io.stat, by process from /proc/<pid>/io.
+			const w0 = disks[0].w;
+			L.push(blank(), section('WHO IS WRITING', `${disks[0].name} · last 2s`));
+			L.push([['  ' + pad('BY SERVICE', 18) + padL('WRITE', 8) + padL('READ', 8) + padL('SHARE', 6), 'c']]);
+			[['postgres.service', 0.89, 0.8], ['user.slice', 0.09, 0.18], ['journald.service', 0.02, 0.02]].forEach(([n, sh, r], i) =>
+				L.push([[i === 0 ? '▸ ' : '  ', 'acc'], [pad(n as string, 18), 'fg'], [padL(fmtRate(w0 * (sh as number)).replace(' ', ''), 8), 'm'], [padL(fmtRate(disks[0].r * (r as number)).replace(' ', ''), 8), 'b'], [padL(Math.round((sh as number) * 100) + '%', 6), 'mu']]),
+			);
+			L.push([['  WAITING ON DISK  ', 'fg'], ['2 in D state now', 'y']]);
+			L.push([['  1204   postgres   ', 'fg'], ['D', 'y'], ['  postgres.service', 'mu']]);
+			L.push([['  48990  rsync      ', 'fg'], ['D', 'y'], ['  user.slice', 'mu']]);
 			L.push(blank(), keys('↑↓ select  [↵] detail  [s]ort  tab section  [w] 6h  [p]ause  [q]uit'));
+			return L;
+		},
+	};
+}
+
+// procs (v2.12): the machine panel over a process table, sorted by %CPU.
+function procs(): Demo {
+	const cores = [92, 48, 38, 11, 20, 29, 61, 35];
+	const load: number[] = hist(120, () => rnd(2.2, 4.2));
+	const list = [
+		{ pid: 48213, cmd: 'cargo', user: 'dev', cpu: 12.4, mem: 4.1, st: 'R', up: '2d' },
+		{ pid: 51020, cmd: 'claude', user: 'dev', cpu: 2.8, mem: 2.0, st: 'S', up: '3h' },
+		{ pid: 48990, cmd: 'rsync', user: 'dev', cpu: 1.1, mem: 0.9, st: 'D', up: '41m' },
+		{ pid: 1204, cmd: 'postgres', user: 'postgres', cpu: 0.6, mem: 12.3, st: 'S', up: '9d' },
+		{ pid: 733, cmd: 'tailscaled', user: 'root', cpu: 0.4, mem: 0.1, st: 'S', up: '3d' },
+		{ pid: 2210, cmd: 'node', user: 'dev', cpu: 0.3, mem: 1.6, st: 'S', up: '6h' },
+		{ pid: 51077, cmd: '(a) b (c)', user: 'dev', cpu: -1, mem: 0, st: 'Z', up: '12s' },
+	];
+	let used = 18, f = 0, sel = 0;
+	return {
+		every: 1000,
+		tick() {
+			f++;
+			cores.forEach((c, i) => (cores[i] = Math.round(walk(c, 14, 2, 99))));
+			push(load, walk(load[load.length - 1], 0.4, 1.2, 9), 120);
+			list.forEach((p) => p.cpu >= 0 && (p.cpu = +walk(p.cpu, p.cpu > 5 ? 3 : 0.6, 0, 40).toFixed(1)));
+			used = walk(used, 0.3, 16, 21);
+			if (f % 5 === 0) sel = (sel + 1) % 4;
+		},
+		render(cols) {
+			const busy = Math.round(cores.reduce((a, b) => a + b, 0) / cores.length);
+			const ld = load[load.length - 1];
+			const top = cores.indexOf(Math.max(...cores));
+			const heat = (v: number): Colour => (v > 85 ? 'r' : v > 60 ? 'y' : 'g');
+			const L: Line[] = [
+				header('PROCS', cols),
+				section('MACHINE', `sampled ${f % 2}s ago · every 2s`),
+				[[' CPU  ', 'c'], [`8 cores · ${busy}% busy · load `, 'fg'], [ld.toFixed(2), ld > 8 ? 'r' : 'fg'], [' 2.80 2.10', 'mu']],
+			];
+			const rows = columns(cores, 3, 100);
+			rows.forEach((r) => L.push([[' ', 'fg'], ...[...r].map((ch, i): Seg => [ch.repeat(4) + ' ', heat(cores[i])])]));
+			L.push([[' ' + cores.map((c) => padL(c, 4)).join(' '), 'mu']]);
+			L.push([[` per core, % over the last poll · busiest cpu${top} ${cores[top]}%`, 'mu']]);
+			L.push(blank());
+			const mw = Math.max(10, Math.min(32, cols - 30));
+			const u = bar(used / 31, mw), sw = bar(1.2 / 4, mw);
+			L.push([[' MEMORY  31G ', 'c'], [u.on, used / 31 > 0.85 ? 'y' : 'g'], [u.off, 'dim'], [`  used ${used.toFixed(0)}G`, 'fg']]);
+			L.push([[' SWAP     4G ', 'c'], [sw.on, 'b'], [sw.off, 'dim'], ['  1.2G used', 'fg']]);
+			L.push(blank(), [[' LOAD  ', 'c'], ['1-minute average, last 10 min', 'mu']]);
+			const w = cols - 10;
+			columns(load.slice(-w), 2, 10).forEach((s, i) => L.push([[i === 0 ? padL('8 cores', 8) + ' ' : padL('0', 8) + ' ', 'mu'], [s, ld > 8 ? 'r' : 'c']]));
+			L.push(blank(), section('PROCESSES', '598 · sorted by %CPU · 3 zombies'));
+			L.push([[' ' + padL('PID', 6) + ' ' + pad('COMMAND', 11) + pad('USER', 9) + padL('%CPU', 5) + padL('MEM', 6) + ' ST ' + padL('UP', 4), 'c']]);
+			[...list].sort((a, b) => b.cpu - a.cpu).forEach((p, i) => {
+				const st: Colour = p.st === 'R' ? 'g' : p.st === 'D' ? 'y' : p.st === 'Z' ? 'r' : 'mu';
+				L.push([[i === sel ? '▸' : ' ', 'acc'], [padL(p.pid, 6) + ' ', 'mu'], [pad(p.cmd, 11), 'fg'], [pad(p.user, 9), p.user === 'dev' ? 'fg' : 'mu'], [padL(p.cpu < 0 ? '—' : p.cpu.toFixed(1), 5), p.cpu > 10 ? 'y' : 'fg'], [padL(p.mem.toFixed(1) + '%', 6), 'mu'], ['  ' + p.st + ' ', st], [padL(p.up, 4), 'mu']]);
+			});
+			L.push(blank(), [[' D = waiting on disk, 1 shown now', 'mu']]);
+			L.push(keys('↑↓ select  [↵] detail  [s]ort  [/] filter  [u] only yours  [g] by service  [q]uit'));
 			return L;
 		},
 	};
@@ -1148,7 +1213,7 @@ function googleSearchConsole(): Demo {
 }
 
 export const demos: Record<string, () => Demo> = {
-	latency, tailnet, ports, netwatch, link, disk,
+	latency, tailnet, ports, netwatch, link, disk, procs,
 	'vercel-deployments': vercel, github, 'github-actions': githubActions, 'github-prs': githubPrs, linear,
 	'google-analytics': googleAnalytics, 'google-search-console': googleSearchConsole,
 	'mux-activity': muxActivity, 'agent-usage': agentUsage,
