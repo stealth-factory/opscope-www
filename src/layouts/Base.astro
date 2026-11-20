@@ -13,7 +13,7 @@ interface Props {
 const { title, description } = Astro.props;
 const url = new URL(Astro.url.pathname, Astro.site).href;
 const image = new URL('/og.png', Astro.site).href;
-const imageAlt = 'opscope: mission control for your software factory. Run npx opscope. Beside the headline, three widget panes: GitHub Actions runs, clocks and coding-agent usage.';
+const imageAlt = 'opscope: mission control for AI agents in your software factory. Run npx opscope. Beside the headline, three widget panes: GitHub Actions runs, clocks and coding-agent usage.';
 // Structured data, so search engines can show opscope as a free developer tool.
 const app = JSON.stringify({
 	'@context': 'https://schema.org',
@@ -23,6 +23,7 @@ const app = JSON.stringify({
 	url,
 	image,
 	screenshot: image,
+	keywords: 'software factory, AI agents, AI coding agents, agent monitoring, terminal dashboard, TUI, tmux, Claude Code, Codex, CI, deployments',
 	applicationCategory: 'DeveloperApplication',
 	operatingSystem: 'Linux, macOS',
 	offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },

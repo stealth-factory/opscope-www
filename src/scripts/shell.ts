@@ -307,7 +307,7 @@ export async function startShell() {
 
 	const about = () => {
 		line(paint('# Hollywood called. They want their terminal back.', 'mu'));
-		line(`Mission control for your ${paint('software factory', 'acc')}: your coding agents, PRs, CI and deploys, live.`);
+		line(`Mission control for your ${paint('software factory', 'acc')}: your AI coding agents, PRs, CI and deploys, live.`);
 		line(`${widgets.length} widgets for Linux and macOS. ${paint('ls', 'acc')} to see them.`);
 	};
 
