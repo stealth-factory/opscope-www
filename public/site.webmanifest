@@ -1,7 +1,7 @@
 {
 	"name": "opscope",
 	"short_name": "opscope",
-	"description": "Dashboard widgets for your terminal.",
+	"description": "Mission control for AI agents in your software factory.",
 	"start_url": "/",
 	"display": "browser",
 	"background_color": "#1b1d22",
